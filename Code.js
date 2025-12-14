@@ -39,6 +39,83 @@ function sendManualLeaveNotification() {
 }
 
 /**
+ * System Test - validates configuration, credentials, and authentication
+ */
+function testSystem() {
+  Logger.log('===== LEAVE ALERT SYSTEM TEST =====');
+  Logger.log('');
+  
+  let allTestsPassed = true;
+  
+  // Test 1: Script Properties (Credentials)
+  Logger.log('TEST 1: Script Properties');
+  const username = PropertiesService.getScriptProperties().getProperty('HRM_USERNAME');
+  const password = PropertiesService.getScriptProperties().getProperty('HRM_PASSWORD');
+  
+  if (username && password) {
+    Logger.log('✓ HRM_USERNAME: Set');
+    Logger.log('✓ HRM_PASSWORD: Set');
+  } else {
+    Logger.log('✗ FAILED: Missing credentials in Script Properties');
+    if (!username) Logger.log('  - HRM_USERNAME not set');
+    if (!password) Logger.log('  - HRM_PASSWORD not set');
+    allTestsPassed = false;
+  }
+  Logger.log('');
+  
+  // Test 2: Configuration Data
+  Logger.log('TEST 2: Configuration Data');
+  Logger.log('Total Employees: ' + Object.keys(EMPLOYEES).length);
+  Logger.log('Total Teams: ' + TEAMS.length);
+  
+  TEAMS.forEach(function(team) {
+    Logger.log('  Team: ' + team.teamName + ' (' + team.members.length + ' members)');
+  });
+  Logger.log('');
+  
+  // Test 3: Configuration Validation
+  Logger.log('TEST 3: Configuration Validation');
+  let configErrors = false;
+  
+  TEAMS.forEach(function(team) {
+    team.members.forEach(function(personId) {
+      if (!EMPLOYEES[personId]) {
+        Logger.log('✗ ERROR: Employee ID "' + personId + '" in team "' + team.teamName + '" not found in EMPLOYEES');
+        configErrors = true;
+      }
+    });
+  });
+  
+  if (!configErrors) {
+    Logger.log('✓ All team members exist in EMPLOYEES');
+  } else {
+    allTestsPassed = false;
+  }
+  Logger.log('');
+  
+  // Test 4: Authentication
+  if (username && password) {
+    Logger.log('TEST 4: Authentication');
+    const sessionCookie = authenticateUser(username, password);
+    
+    if (sessionCookie) {
+      Logger.log('✓ Authentication successful');
+    } else {
+      Logger.log('✗ FAILED: Authentication failed');
+      allTestsPassed = false;
+    }
+    Logger.log('');
+  }
+  
+  // Final Result
+  if (allTestsPassed) {
+    Logger.log('==== ✓ ALL TESTS PASSED ====');
+  } else {
+    Logger.log('===== ✗ SOME TESTS FAILED =====');
+  }
+}
+
+/**
  * Daily Leave Reminder - Sends reminder for today's leaves
  */
 function sendDailyLeaveReminder() {
@@ -513,82 +590,5 @@ function sendLeaveEmail(toEmail, leaves, dateString, mode) {
     });
   } catch (error) {
     Logger.log('Error sending email to ' + toEmail + ': ' + error.toString());
-  }
-}
-
-/**
- * System Test - validates configuration, credentials, and authentication
- */
-function testSystem() {
-  Logger.log('===== LEAVE ALERT SYSTEM TEST =====');
-  Logger.log('');
-  
-  let allTestsPassed = true;
-  
-  // Test 1: Script Properties (Credentials)
-  Logger.log('TEST 1: Script Properties');
-  const username = PropertiesService.getScriptProperties().getProperty('HRM_USERNAME');
-  const password = PropertiesService.getScriptProperties().getProperty('HRM_PASSWORD');
-  
-  if (username && password) {
-    Logger.log('✓ HRM_USERNAME: Set');
-    Logger.log('✓ HRM_PASSWORD: Set');
-  } else {
-    Logger.log('✗ FAILED: Missing credentials in Script Properties');
-    if (!username) Logger.log('  - HRM_USERNAME not set');
-    if (!password) Logger.log('  - HRM_PASSWORD not set');
-    allTestsPassed = false;
-  }
-  Logger.log('');
-  
-  // Test 2: Configuration Data
-  Logger.log('TEST 2: Configuration Data');
-  Logger.log('Total Employees: ' + Object.keys(EMPLOYEES).length);
-  Logger.log('Total Teams: ' + TEAMS.length);
-  
-  TEAMS.forEach(function(team) {
-    Logger.log('  Team: ' + team.teamName + ' (' + team.members.length + ' members)');
-  });
-  Logger.log('');
-  
-  // Test 3: Configuration Validation
-  Logger.log('TEST 3: Configuration Validation');
-  let configErrors = false;
-  
-  TEAMS.forEach(function(team) {
-    team.members.forEach(function(personId) {
-      if (!EMPLOYEES[personId]) {
-        Logger.log('✗ ERROR: Employee ID "' + personId + '" in team "' + team.teamName + '" not found in EMPLOYEES');
-        configErrors = true;
-      }
-    });
-  });
-  
-  if (!configErrors) {
-    Logger.log('✓ All team members exist in EMPLOYEES');
-  } else {
-    allTestsPassed = false;
-  }
-  Logger.log('');
-  
-  // Test 4: Authentication
-  if (username && password) {
-    Logger.log('TEST 4: Authentication');
-    const sessionCookie = authenticateUser(username, password);
-    
-    if (sessionCookie) {
-      Logger.log('✓ Authentication successful');
-    } else {
-      Logger.log('✗ FAILED: Authentication failed');
-      allTestsPassed = false;
-    }
-    Logger.log('');
-  }
-  
-  // Final Result
-  if (allTestsPassed) {
-    Logger.log('==== ✓ ALL TESTS PASSED ====');
-  } else {
-    Logger.log('===== ✗ SOME TESTS FAILED =====');
   }
 }

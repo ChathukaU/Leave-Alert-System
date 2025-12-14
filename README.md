@@ -24,6 +24,8 @@ clasp run functionName
 clasp push --watch
 
 
+ for test funtion
+ // NOTE: This test performs a real login request
 
 This Google Apps Script project automatically:
 - Logs into your OrangeHRM system
