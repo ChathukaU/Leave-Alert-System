@@ -1,105 +1,100 @@
 /**
- * OrangeHRM Daily Leave Report
+ * LONGWApps Leave Alert System using OrangeHRM
  * 
  * Setup:
  * 1. Project Settings → Script Properties:
  *    - HRM_USERNAME: your username
  *    - HRM_PASSWORD: your password
- * 2. Update Teams.gs with employee and team data
- * 3. Set daily trigger for sendDailyLeaveReport
+ * 2. Update Config.js with employee and team data
+ * 3. Set daily trigger for sendDailyLeaveReminder
+ * 4. For manual testing, change MANUAL_REMINDER_DATE in Config.js and run sendManualLeaveReminder
  */
 
 const BASE_URL = 'https://www.longwapps.com/hrm/web';
 
 /**
- * Main function - Send today's leave report
- * Set this as daily trigger
+ * Manual Leave Reminder - Run this manually
+ * Uses date from MANUAL_REMINDER_DATE in Config.js
  */
-function sendDailyLeaveReport() {
-  const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
-  sendLeaveReportForDate(today);
-}
-
-/**
- * Send leave report for a specific date
- * Use this to manually check any date - testSpecificDate funtion
- */
-function sendLeaveReportForDate(dateString='2025-12-12') {
-  try {
-    Logger.log('Starting leave report for: ' + dateString);
-    
-    const username = PropertiesService.getScriptProperties().getProperty('HRM_USERNAME');
-    const password = PropertiesService.getScriptProperties().getProperty('HRM_PASSWORD');
-    
-    if (!username || !password) {
-      Logger.log('ERROR: Username or password not found in Script Properties');
-      return;
-    }
-    
-    const token = getLoginToken();
-    if (!token) {
-      Logger.log('ERROR: Failed to get login token');
-      return;
-    }
-    
-    const leaveData = loginAndFetchData(username, password, token, dateString);
-    if (!leaveData) {
-      Logger.log('ERROR: Failed to fetch leave data');
-      return;
-    }
-    
-    if (leaveData.data.length === 0) {
-      Logger.log('No employees on leave on ' + dateString);
-      return;
-    }
-    
-    processAndSendEmails(leaveData, dateString);
-    Logger.log('Success! Emails sent for ' + leaveData.meta.total + ' employees on leave');
-    
-  } catch (error) {
-    Logger.log('ERROR: ' + error.toString());
+function sendManualLeaveReminder() {
+  if (typeof MANUAL_REMINDER_DATE === 'undefined' || !MANUAL_REMINDER_DATE) {
+    Logger.log('Please set MANUAL_REMINDER_DATE in Config.js (format: yyyy-MM-dd)');
+    return;
   }
+  Logger.log('Manual Leave Reminder trigger: ' + MANUAL_REMINDER_DATE);
+  sendLeaveReminder(MANUAL_REMINDER_DATE);
 }
 
 /**
- * Get login token and initial cookie
+ * Manual Leave Notification - Run this manually
+ * Uses date from MANUAL_NOTIFICATION_DATE in Config.js
  */
-function getLoginToken() {
+function sendManualLeaveNotification() {
+  if (typeof MANUAL_NOTIFICATION_DATE === 'undefined' || !MANUAL_NOTIFICATION_DATE) {
+    Logger.log('Please set MANUAL_NOTIFICATION_DATE in Config.js (format: yyyy-MM-dd)');
+    return;
+  }
+  Logger.log('Manual Leave Notification trigger: ' + MANUAL_NOTIFICATION_DATE);
+  sendLeaveNotification(MANUAL_NOTIFICATION_DATE, [2, 3]);
+}
+
+/**
+ * Daily Leave Reminder - Sends reminder for today's leaves
+ */
+function sendDailyLeaveReminder() {
+  const today = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  sendLeaveReminder(today);
+}
+
+/**
+ * Daily Leave Notification - Sends notification for leaves starting tomorrow
+ */
+function sendDailyLeaveNotification() {
+  const today = new Date();
+  const tomorrow = new Date(today);
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const tomorrowDate = Utilities.formatDate(tomorrow, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  
+  sendLeaveNotification(tomorrowDate, [2]);
+}
+
+/**
+ * Authenticate user and return session cookie
+ * Handles complete authentication flow: token fetch, login, and session validation
+ */
+function authenticateUser(username, password) {
   try {
-    const response = UrlFetchApp.fetch(BASE_URL + '/auth/login', {
+    // Helper function to extract cookie from response headers
+    function extractCookie(headers) {
+      if (headers['Set-Cookie'] || headers['set-cookie']) {
+        const setCookie = headers['Set-Cookie'] || headers['set-cookie'];
+        const cookieMatch = setCookie.match(/orangehrm=([^;]+)/);
+        if (cookieMatch && cookieMatch[1]) {
+          return cookieMatch[1];
+        }
+      }
+      return null;
+    }
+    
+    // Get login token and initial cookie
+    const loginPageResponse = UrlFetchApp.fetch(BASE_URL + '/auth/login', {
       method: 'get',
       followRedirects: false,
       muteHttpExceptions: true
     });
     
-    const html = response.getContentText();
-    const headers = response.getAllHeaders();
-    
-    if (headers['Set-Cookie'] || headers['set-cookie']) {
-      const setCookie = headers['Set-Cookie'] || headers['set-cookie'];
-      const cookieMatch = setCookie.match(/orangehrm=([^;]+)/);
-      
-      if (cookieMatch && cookieMatch[1]) {
-        PropertiesService.getScriptProperties().setProperty('INITIAL_COOKIE', cookieMatch[1]);
-      }
-    }
+    const html = loginPageResponse.getContentText();
+    const initialCookie = extractCookie(loginPageResponse.getAllHeaders());
     
     const tokenMatch = html.match(/:token="&quot;([^"]+)&quot;"/);
-    return tokenMatch ? tokenMatch[1] : null;
+    const token = tokenMatch ? tokenMatch[1] : null;
     
-  } catch (error) {
-    Logger.log('Error getting login token: ' + error.toString());
-    return null;
-  }
-}
-
-/**
- * Login and fetch data for specific date
- */
-function loginAndFetchData(username, password, token, dateString) {
-  try {
-    const initialCookie = PropertiesService.getScriptProperties().getProperty('INITIAL_COOKIE');
+    if (!token) {
+      Logger.log('Failed to get login token');
+      return null;
+    }
     
+    // Login and validate credentials
     const loginOptions = {
       method: 'post',
       payload: {
@@ -116,27 +111,20 @@ function loginAndFetchData(username, password, token, dateString) {
     }
     
     const loginResponse = UrlFetchApp.fetch(BASE_URL + '/auth/validate', loginOptions);
-    const loginHeaders = loginResponse.getAllHeaders();
     
     if (loginResponse.getResponseCode() !== 302) {
-      Logger.log('Login failed');
+      Logger.log('Login validation failed');
       return null;
     }
     
-    let sessionCookie = null;
-    if (loginHeaders['Set-Cookie'] || loginHeaders['set-cookie']) {
-      const setCookie = loginHeaders['Set-Cookie'] || loginHeaders['set-cookie'];
-      const cookieMatch = setCookie.match(/orangehrm=([^;]+)/);
-      if (cookieMatch && cookieMatch[1]) {
-        sessionCookie = cookieMatch[1];
-      }
-    }
-    
+    // Extract session cookie from login response
+    let sessionCookie = extractCookie(loginResponse.getAllHeaders());
     if (!sessionCookie) {
-      Logger.log('Failed to get session cookie');
+      Logger.log('Failed to get session cookie from login');
       return null;
     }
     
+    // Access dashboard to finalize session
     const dashboardResponse = UrlFetchApp.fetch(BASE_URL + '/dashboard/index', {
       method: 'get',
       headers: {
@@ -153,16 +141,164 @@ function loginAndFetchData(username, password, token, dateString) {
       return null;
     }
     
-    const dashHeaders = dashboardResponse.getAllHeaders();
-    if (dashHeaders['Set-Cookie'] || dashHeaders['set-cookie']) {
-      const setCookie = dashHeaders['Set-Cookie'] || dashHeaders['set-cookie'];
-      const cookieMatch = setCookie.match(/orangehrm=([^;]+)/);
-      if (cookieMatch && cookieMatch[1]) {
-        sessionCookie = cookieMatch[1];
-      }
+    // Update session cookie if refreshed
+    const updatedCookie = extractCookie(dashboardResponse.getAllHeaders());
+    if (updatedCookie) {
+      sessionCookie = updatedCookie;
     }
     
-    const apiUrl = BASE_URL + '/api/v2/dashboard/employees/leaves?date=' + dateString;
+    Logger.log('Authentication successful');
+    return sessionCookie;
+    
+  } catch (error) {
+    Logger.log('Error in authentication: ' + error.toString());
+    return null;
+  }
+}
+
+/**
+ * Core reminder function - Send leave reminder for a specific date
+ */
+function sendLeaveReminder(dateString) {
+  try {
+    Logger.log('Starting leave reminder for: ' + dateString);
+    
+    const username = PropertiesService.getScriptProperties().getProperty('HRM_USERNAME');
+    const password = PropertiesService.getScriptProperties().getProperty('HRM_PASSWORD');
+    
+    if (!username || !password) {
+      Logger.log('ERROR: Username or password not found in Script Properties');
+      return;
+    }
+    
+    // Authenticate and get session cookie
+    const sessionCookie = authenticateUser(username, password);
+    if (!sessionCookie) {
+      Logger.log('ERROR: Authentication failed');
+      return;
+    }
+    
+    // Fetch leave data for the specific date
+    const leaveData = fetchLeaveRequests(sessionCookie, {
+      fromDate: dateString,
+      toDate: dateString,
+      statuses: [2, 3]  // 2 = Scheduled, 3 = Taken
+    });
+    
+    if (!leaveData || !leaveData.data) {
+      Logger.log('ERROR: Failed to fetch leave data');
+      return;
+    }
+    
+    // Filter leaves that actually fall on the target date
+    const leavesForDate = leaveData.data.filter(function(leave) {
+      const fromDate = leave.dates.fromDate;
+      const toDate = leave.dates.toDate || fromDate;
+      return dateString >= fromDate && dateString <= toDate;
+    });
+    
+    if (leavesForDate.length === 0) {
+      Logger.log('No employees on leave on ' + dateString);
+      return;
+    }
+    
+    dispatchLeaveEmails(leavesForDate, dateString, 'reminder');
+    Logger.log('Success! Reminder emails sent to team members about ' + leavesForDate.length + ' employee(s) on leave');
+    
+  } catch (error) {
+    Logger.log('ERROR: ' + error.toString());
+  }
+}
+
+/**
+ * Core notification function - Send leave notification for leaves starting on a specific date
+ */
+function sendLeaveNotification(startDate, statuses) {
+  try {
+    statuses = statuses || [2];
+    Logger.log('Starting Leave Notification for leaves starting on: ' + startDate);
+    
+    const username = PropertiesService.getScriptProperties().getProperty('HRM_USERNAME');
+    const password = PropertiesService.getScriptProperties().getProperty('HRM_PASSWORD');
+    
+    if (!username || !password) {
+      Logger.log('ERROR: Username or password not found in Script Properties');
+      return;
+    }
+    
+    // Authenticate and get session cookie
+    const sessionCookie = authenticateUser(username, password);
+    if (!sessionCookie) {
+      Logger.log('ERROR: Authentication failed');
+      return;
+    }
+    
+    // Fetch all approved leaves starting from the specified date
+    const leaveData = fetchLeaveRequests(sessionCookie, {
+      fromDate: startDate,
+      toDate: startDate,
+      statuses: statuses
+    });
+    
+    if (!leaveData || !leaveData.data) {
+      Logger.log('ERROR: Failed to fetch leave data');
+      return;
+    }
+    
+    // Filter to only include leaves that START on the target date (avoid redundant notifications)
+    const leavesStartingOnDate = leaveData.data.filter(function(leave) {
+      return leave.dates.fromDate === startDate;
+    });
+    
+    if (leavesStartingOnDate.length === 0) {
+      Logger.log('No approved leaves starting on ' + startDate);
+      return;
+    }
+    
+    dispatchLeaveEmails(leavesStartingOnDate, startDate, 'notification');
+    Logger.log('Success! Notification emails sent to team members about ' + leavesStartingOnDate.length + ' upcoming leave(s)');
+    
+  } catch (error) {
+    Logger.log('ERROR: ' + error.toString());
+  }
+}
+
+/**
+ * Fetch leave requests from full API
+ * @param {string} sessionCookie - Authenticated session cookie
+ * @param {Object} options - Filter options
+ * @param {string} options.fromDate - Start date (yyyy-MM-dd)
+ * @param {string} options.toDate - End date (yyyy-MM-dd)
+ * @param {Array<number>} options.statuses - Leave statuses [2=Scheduled, 3=Taken]
+ * @param {number} options.leaveTypeId - Optional: 1=Annual, 2=Casual, 3=Maternity (omit to get all types)
+ * @param {number} options.limit - Optional: Default 50
+ * @param {number} options.offset - Optional: Default 0
+ */
+function fetchLeaveRequests(sessionCookie, options) {
+  try {
+    options = options || {};
+    const fromDate = options.fromDate || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd');
+    const toDate = options.toDate || fromDate;
+    const statuses = options.statuses || [2, 3];
+    const limit = options.limit ?? 50;
+    const offset = options.offset ?? 0;
+    
+    Logger.log('Fetching leave requests from ' + fromDate + ' to ' + toDate);
+
+    let apiUrl = BASE_URL + '/api/v2/leave/employees/leave-requests'
+      + '?limit=' + limit
+      + '&offset=' + offset
+      + '&fromDate=' + fromDate
+      + '&toDate=' + toDate
+      + '&includeEmployees=onlyCurrent';
+    
+    statuses.forEach(s => apiUrl += '&statuses[]=' + s);
+
+    if (options.leaveTypeId != null) {
+      apiUrl += '&leaveTypeId=' + options.leaveTypeId;
+    }
+    
+    Logger.log('API URL: ' + apiUrl);
     
     const apiResponse = UrlFetchApp.fetch(apiUrl, {
       method: 'get',
@@ -170,7 +306,7 @@ function loginAndFetchData(username, password, token, dateString) {
         'Cookie': 'orangehrm=' + sessionCookie,
         'Accept': 'application/json',
         'Cache-Control': 'no-store, no-cache, must-revalidate',
-        'Referer': BASE_URL + '/dashboard/index',
+        'Referer': BASE_URL + '/leave/viewLeaveList',
         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
       },
       muteHttpExceptions: true
@@ -181,134 +317,192 @@ function loginAndFetchData(username, password, token, dateString) {
       return null;
     }
     
-    PropertiesService.getScriptProperties().deleteProperty('INITIAL_COOKIE');
-    
+    Logger.log('Leave requests fetched successfully');
     return JSON.parse(apiResponse.getContentText());
     
   } catch (error) {
-    Logger.log('Error in login/fetch: ' + error.toString());
+    Logger.log('Error fetching leave requests: ' + error.toString());
     return null;
   }
 }
 
 /**
- * Process leave data and send emails to relevant teams
+ * Process leave data and send emails to relevant team members
+ * @param {Array} leaves - Leave data
+ * @param {string} dateString - Reference date
+ * @param {string} mode - 'reminder' or 'notification'
  */
-function processAndSendEmails(leaveData, dateString) {
+function dispatchLeaveEmails(leaves, dateString, mode) {
   const emailsToSend = {};
+  const isReminder = mode === 'reminder';
   
-  // Get list of people on leave (they won't receive emails)
-  const employeesOnLeave = leaveData.data.map(function(leave) {
+  // Get list of people on leave
+  const employeesOnLeave = leaves.map(function(leave) {
     return leave.employee.employeeId;
   });
   
-  Logger.log('Employees on leave: ' + employeesOnLeave.join(', '));
+  Logger.log(isReminder ? 'Employees on leave: ' + employeesOnLeave.join(', ') : 'Employees with upcoming leave: ' + employeesOnLeave.join(', '));
   
-  // Process each employee on leave
-  leaveData.data.forEach(function(leave) {
+  // Process each employee
+  leaves.forEach(function(leave) {
     const employeeId = leave.employee.employeeId;
-    const employeeName = leave.employee.firstName + ' ' + 
-                        (leave.employee.middleName ? leave.employee.middleName + ' ' : '') + 
-                        leave.employee.lastName;
-    
-    Logger.log('Processing: ' + employeeName + ' (ID: ' + employeeId + ')');
+    const employeeName = EMPLOYEES[employeeId] ? EMPLOYEES[employeeId].name : employeeId;
     
     // Find teams this employee belongs to
+    const employeeTeams = [];
     TEAMS.forEach(function(team) {
       if (team.members.indexOf(employeeId) !== -1) {
-        Logger.log('  Team: ' + team.teamName);
+        employeeTeams.push(team.teamName);
         
-        // Notify all team members except those on leave
+        // Notify team members based on mode
         team.members.forEach(function(memberId) {
-          if (employeesOnLeave.indexOf(memberId) === -1) {
-            const email = EMPLOYEES[memberId] ? EMPLOYEES[memberId].email : null;
-            if (email) {
-              if (!emailsToSend[email]) {
-                emailsToSend[email] = [];
+          // Reminder: exclude ALL people on leave | Notification: exclude only THIS person
+          const shouldExclude = isReminder 
+            ? employeesOnLeave.indexOf(memberId) !== -1 
+            : memberId === employeeId;
+          
+          if (!shouldExclude) {
+            const memberInfo = EMPLOYEES[memberId];
+            if (memberInfo && memberInfo.email) {
+              if (!emailsToSend[memberInfo.email]) {
+                emailsToSend[memberInfo.email] = [];
               }
-              const alreadyAdded = emailsToSend[email].some(function(item) {
+              const alreadyAdded = emailsToSend[memberInfo.email].some(function(item) {
                 return item.employee.employeeId === employeeId;
               });
               if (!alreadyAdded) {
-                emailsToSend[email].push(leave);
+                emailsToSend[memberInfo.email].push(leave);
               }
             }
           }
         });
       }
     });
+    
+    if (employeeTeams.length > 0) {
+      Logger.log('Processing: ' + employeeName + ' [' + employeeId + '] (Teams: ' + employeeTeams.join(', ') + ')');
+    }
   });
   
   // Send emails
   let emailCount = 0;
   for (let email in emailsToSend) {
-    sendLeaveNotificationEmail(email, emailsToSend[email], dateString);
+    sendLeaveEmail(email, emailsToSend[email], dateString, mode);
     emailCount++;
-    Logger.log('Sent to: ' + email + ' (' + emailsToSend[email].length + ' on leave)');
+    Logger.log('Sent to: ' + email + ' (' + emailsToSend[email].length + (isReminder ? ' on leave' : ' upcoming leave(s)') + ')');
   }
   
-  Logger.log('Total emails sent: ' + emailCount);
+  Logger.log('Total ' + mode + ' emails sent: ' + emailCount);
 }
 
 /**
- * Send leave notification email
+ * Build and send leave email with both HTML and plain text versions
+ * @param {string} toEmail - Recipient email
+ * @param {Array} leaves - Array of leave objects
+ * @param {string} dateString - Reference date
+ * @param {string} mode - 'reminder' for today's leaves, 'notification' for upcoming leaves
  */
-function sendLeaveNotificationEmail(toEmail, leaves, dateString) {
+function sendLeaveEmail(toEmail, leaves, dateString, mode) {
+  mode = mode || 'reminder';
+  
   const dateObj = new Date(dateString + 'T00:00:00');
   const formattedDate = Utilities.formatDate(dateObj, Session.getScriptTimeZone(), 'EEEE, MMMM dd, yyyy');
-  const subject = 'Notification of Team Member\'s Leave - ' + formattedDate;
+  
+  const isNotification = mode === 'notification';
+  const subject = isNotification 
+    ? 'Notification: Upcoming Team Member Leave - Starting ' + formattedDate
+    : 'Reminder: Team Member\'s Leave - ' + formattedDate;
   
   let htmlBody = '<html><body style="font-family: Arial, sans-serif;">';
-  htmlBody += '<h2 style="color: #FF7B1D;">Team Member Leave Notification</h2>';
-  htmlBody += '<p><strong>Date:</strong> ' + formattedDate + '</p>';
-  htmlBody += '<p>The following team members are on leave:</p>';
+  htmlBody += '<h2 style="color: #FF7B1D;">' + (isNotification ? 'Upcoming Team Member Leave' : 'Team Member Leave Reminder') + '</h2>';
+  htmlBody += '<p><strong>' + (isNotification ? 'Starting Date:' : 'Date:') + '</strong> ' + formattedDate + '</p>';
+  htmlBody += '<p>' + (isNotification ? 'The following team members will be on leave starting tomorrow:' : 'The following team members are on leave today:') + '</p>';
   
-  htmlBody += '<table border="1" cellpadding="10" cellspacing="0" style="border-collapse: collapse; width: 100%; max-width: 500px; margin-top: 15px;">';
+  htmlBody += '<table border="1" cellpadding="10" cellspacing="0" style="border-collapse: collapse; width: 100%; max-width: 600px; margin-top: 15px;">';
   htmlBody += '<thead style="background-color: #FF7B1D; color: white;">';
-  htmlBody += '<tr><th style="text-align: left;">Name</th><th style="text-align: left;">Duration</th></tr>';
+  htmlBody += '<tr><th style="text-align: left;">Name</th><th style="text-align: left;">Type</th><th style="text-align: left;">Duration</th></tr>';
   htmlBody += '</thead><tbody>';
   
   leaves.forEach(function(leave) {
     const employeeId = leave.employee.employeeId;
-    // Use name from EMPLOYEES if available, otherwise use system name
     const fullName = EMPLOYEES[employeeId] && EMPLOYEES[employeeId].name ? 
                      EMPLOYEES[employeeId].name :
                      leave.employee.firstName + ' ' + 
                      (leave.employee.middleName ? leave.employee.middleName + ' ' : '') + 
                      leave.employee.lastName;
     
-    const duration = leave.duration === 'full_day' ? 'Full Day' : 
-                    leave.duration === 'half_day_morning' ? 'Half Day (Morning)' :
-                    leave.duration === 'half_day_afternoon' ? 'Half Day (Afternoon)' :
-                    leave.duration.replace(/_/g, ' ');
+    const leaveTypeName = leave.leaveType ? leave.leaveType.name : 'Leave';
+    
+    // Format duration
+    let duration = '';
+    const fromDate = leave.dates.fromDate;
+    const toDate = leave.dates.toDate;
+    
+    // Check for multi-day leave first
+    if (toDate && fromDate !== toDate) {
+      const fromDateObj = new Date(fromDate + 'T00:00:00');
+      const toDateObj = new Date(toDate + 'T00:00:00');
+      const formattedFrom = Utilities.formatDate(fromDateObj, Session.getScriptTimeZone(), 'MMM dd');
+      const formattedTo = Utilities.formatDate(toDateObj, Session.getScriptTimeZone(), 'MMM dd, yyyy');
+      duration = leave.noOfDays + ' day(s): ' + formattedFrom + ' - ' + formattedTo;
+    } else if (leave.dates.durationType && leave.dates.durationType.type) {
+      const durationType = leave.dates.durationType.type;
+      if (durationType === 'full_day') {
+        duration = 'Full Day';
+      } else if (durationType === 'half_day_morning') {
+        duration = 'Half Day (Morning)';
+      } else if (durationType === 'half_day_afternoon') {
+        duration = 'Half Day (Afternoon)';
+      } else if (durationType === 'specify_time') {
+        duration = leave.dates.startTime + ' - ' + leave.dates.endTime;
+      } else {
+        duration = durationType.replace(/_/g, ' ');
+      }
+    } else {
+      duration = 'Full Day';
+    }
     
     htmlBody += '<tr>';
     htmlBody += '<td>' + fullName + '</td>';
+    htmlBody += '<td>' + leaveTypeName + '</td>';
     htmlBody += '<td>' + duration + '</td>';
     htmlBody += '</tr>';
   });
   
   htmlBody += '</tbody></table>';
-  htmlBody += '<br><p style="color: #666; font-size: 12px;">Automated notification from OrangeHRM</p>';
+  htmlBody += '<br><p style="color: #666; font-size: 12px;">Automated ' + (isNotification ? 'notification' : 'reminder') + ' from OrangeHRM Leave Alert System</p>';
   htmlBody += '</body></html>';
   
-  let plainBody = 'Team Member Leave Notification - ' + formattedDate + '\n\n';
-  plainBody += 'The following team members are on leave:\n\n';
+  let plainBody = (isNotification ? 'Upcoming Team Member Leave - Starting ' : 'Team Member Leave Reminder - ') + formattedDate + '\n\n';
+  plainBody += (isNotification ? 'The following team members will be on leave starting tomorrow:\n\n' : 'The following team members are on leave today:\n\n');
   
   leaves.forEach(function(leave) {
     const employeeId = leave.employee.employeeId;
-    // Use name from EMPLOYEES if available, otherwise use system name
     const fullName = EMPLOYEES[employeeId] && EMPLOYEES[employeeId].name ? 
                      EMPLOYEES[employeeId].name :
                      leave.employee.firstName + ' ' + 
                      (leave.employee.middleName ? leave.employee.middleName + ' ' : '') + 
                      leave.employee.lastName;
     
-    const duration = leave.duration === 'full_day' ? 'Full Day' : leave.duration.replace(/_/g, ' ');
-    plainBody += '- ' + fullName + ' (' + duration + ')\n';
+    const leaveTypeName = leave.leaveType ? leave.leaveType.name : 'Leave';
+    
+    let duration = '';
+    const fromDate = leave.dates.fromDate;
+    const toDate = leave.dates.toDate;
+    
+    if (toDate && fromDate !== toDate) {
+      duration = leave.noOfDays + ' day(s): ' + fromDate + ' to ' + toDate;
+    } else if (leave.dates.durationType && leave.dates.durationType.type) {
+      const durationType = leave.dates.durationType.type;
+      duration = durationType === 'full_day' ? 'Full Day' : durationType.replace(/_/g, ' ');
+    } else {
+      duration = 'Full Day';
+    }
+    
+    plainBody += '- ' + fullName + ' (' + leaveTypeName + ' - ' + duration + ')\n';
   });
   
-  plainBody += '\n---\nAutomated notification from OrangeHRM';
+  plainBody += '\n---\nAutomated ' + (isNotification ? 'notification' : 'reminder') + ' from OrangeHRM Leave Alert System';
   
   try {
     MailApp.sendEmail({
@@ -323,56 +517,78 @@ function sendLeaveNotificationEmail(toEmail, leaves, dateString) {
 }
 
 /**
- * Test configuration
+ * System Test - validates configuration, credentials, and authentication
  */
-function testTeamConfiguration() {
-  Logger.log('=== CONFIGURATION TEST ===');
-  Logger.log('Total People: ' + Object.keys(EMPLOYEES).length);
-  Logger.log('Total Teams: ' + TEAMS.length);
+function testSystem() {
+  Logger.log('===== LEAVE ALERT SYSTEM TEST =====');
   Logger.log('');
   
+  let allTestsPassed = true;
+  
+  // Test 1: Script Properties (Credentials)
+  Logger.log('TEST 1: Script Properties');
+  const username = PropertiesService.getScriptProperties().getProperty('HRM_USERNAME');
+  const password = PropertiesService.getScriptProperties().getProperty('HRM_PASSWORD');
+  
+  if (username && password) {
+    Logger.log('✓ HRM_USERNAME: Set');
+    Logger.log('✓ HRM_PASSWORD: Set');
+  } else {
+    Logger.log('✗ FAILED: Missing credentials in Script Properties');
+    if (!username) Logger.log('  - HRM_USERNAME not set');
+    if (!password) Logger.log('  - HRM_PASSWORD not set');
+    allTestsPassed = false;
+  }
+  Logger.log('');
+  
+  // Test 2: Configuration Data
+  Logger.log('TEST 2: Configuration Data');
+  Logger.log('Total Employees: ' + Object.keys(EMPLOYEES).length);
+  Logger.log('Total Teams: ' + TEAMS.length);
+  
   TEAMS.forEach(function(team) {
-    Logger.log('Team: ' + team.teamName);
-    Logger.log('  Members: ' + team.members.join(', '));
+    Logger.log('  Team: ' + team.teamName + ' (' + team.members.length + ' members)');
   });
   Logger.log('');
   
-  // Validation
-  let hasErrors = false;
+  // Test 3: Configuration Validation
+  Logger.log('TEST 3: Configuration Validation');
+  let configErrors = false;
+  
   TEAMS.forEach(function(team) {
     team.members.forEach(function(personId) {
       if (!EMPLOYEES[personId]) {
-        Logger.log('ERROR: ID "' + personId + '" not found in EMPLOYEES');
-        hasErrors = true;
+        Logger.log('✗ ERROR: Employee ID "' + personId + '" in team "' + team.teamName + '" not found in EMPLOYEES');
+        configErrors = true;
       }
     });
   });
   
-  if (!hasErrors) {
-    Logger.log('✓ Configuration is valid!');
-  }
-}
-
-/**
- * Test specific date - modify date here and run this function
- */
-function testSpecificDate() {
-  sendLeaveReportForDate('2025-12-12');  // Change date here
-}
-
-/**
- * Test credentials
- */
-function testScriptProperties() {
-  const username = PropertiesService.getScriptProperties().getProperty('HRM_USERNAME');
-  const password = PropertiesService.getScriptProperties().getProperty('HRM_PASSWORD');
-  
-  Logger.log('Username is set: ' + (username ? 'Yes' : 'No'));
-  Logger.log('Password is set: ' + (password ? 'Yes' : 'No'));
-  
-  if (username && password) {
-    Logger.log('✓ Credentials configured!');
+  if (!configErrors) {
+    Logger.log('✓ All team members exist in EMPLOYEES');
   } else {
-    Logger.log('ERROR: Set HRM_USERNAME and HRM_PASSWORD in Script Properties');
+    allTestsPassed = false;
+  }
+  Logger.log('');
+  
+  // Test 4: Authentication
+  if (username && password) {
+    Logger.log('TEST 4: Authentication');
+    const sessionCookie = authenticateUser(username, password);
+    
+    if (sessionCookie) {
+      Logger.log('✓ Authentication successful');
+    } else {
+      Logger.log('✗ FAILED: Authentication failed');
+      allTestsPassed = false;
+    }
+    Logger.log('');
+  }
+  
+  // Final Result
+  if (allTestsPassed) {
+    Logger.log('==== ✓ ALL TESTS PASSED ====');
+  } else {
+    Logger.log('===== ✗ SOME TESTS FAILED =====');
   }
 }

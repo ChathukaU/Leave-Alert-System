@@ -1,20 +1,31 @@
 /**
- * Team Data Configuration
+ * Data Configuration
  * 
  * HOW TO UPDATE:
  * 1. Add/update people in EMPLOYEES
  * 2. Add/update teams in TEAMS
- * 3. Save
+ * 3. For manual Alerts, change the MANUAL_REMINDER_DATE or MANUAL_NOTIFICATION_DATE
+ * 4. Save
  * 
  * Employee IDs from OrangeHRM: '0005', '0007', etc.
  * Intern IDs start with 'I': 'I001', 'I002', etc.
  */
 
+
+// MANUAL Alet Triggers
+// Format: 'yyyy-MM-dd' (example: '2025-07-26')
+
+// REMINDER: Change this date and run sendManualLeaveReminder() to send Manual leave Reminder for any date
+const MANUAL_REMINDER_DATE = '2025-11-21';
+
+// NOTIFICATION: Change this date and run sendManualLeaveNotification() to send Manual leave Notification for any leaves starting on that day
+const MANUAL_NOTIFICATION_DATE = '2025-12-12';
+
 // All employees and interns
 const EMPLOYEES = {
   // 'XXXX': { name: 'Upul Dissanayake', email: 'upul@longwapps.com' },
   // 'XXXX': { name: 'Usira Kodithuwakku', email: 'usira@longwapps.com' },
-  // '0005': { name: 'Pathum Jayathissa', email: 'pathum@longwapps.com' },
+  '0005': { name: 'Pathum Jayathissa', email: 'pathum@longwapps.com' },
   // '0007': { name: 'Chamath Lakmuthu', email: 'chamath@longwapps.com' },
   // '0010': { name: 'Nimesh Madhuwantha', email: 'nimesh@longwapps.com' },
   // '0017': { name: 'Charani Nimesha', email: 'charani@longwapps.com' },
@@ -41,6 +52,9 @@ const EMPLOYEES = {
   // 'I006': { name: 'Vanuka Daksitha', email: 'vanukad@gmail.com' }
 };
 
+// ============================================
+// TEAMS
+// ============================================
 // Team configuration
 const TEAMS = [
   {
