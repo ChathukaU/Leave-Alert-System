@@ -1,407 +1,225 @@
-# OrangeHRM Daily Leave Notification System
+# 📧 Automated Leave Alert System (Google Apps Script + OrangeHRM)
 
-Automated email notification system that sends daily leave reports to team members based on OrangeHRM data.
+This system connects to an **OrangeHRM HR Manager account**, fetches employee leave data, and automatically sends daily formatted email alerts to team members. It eliminates manual checking, improves visibility, and keeps everyone informed about current and upcoming employee absences.
 
-## 📋 Overview
-
-
-# Push local changes to Google
-clasp push
-
-# Pull Google changes to local
-clasp pull
-
-# Open script in browser
-clasp open-script
-
-# View logs
-clasp logs
-
-# Run a function
-clasp run functionName
-
-# Auto-push on save
-clasp push --watch
-
-
- for test funtion
- // NOTE: This test performs a real login request
-
-This Google Apps Script project automatically:
-- Logs into your OrangeHRM system
-- Fetches daily leave data
-- Sends email notifications to relevant team members
-- Ensures people on leave don't receive notifications
-- Prevents duplicate emails for people in multiple teams
-
-## 🗂️ Project Structure
-
-### Two Files
-
-1. **Teams.gs** - Data Configuration (Non-technical staff can maintain)
-2. **Code.gs** - Processing Logic (Developers only)
-
-### Why Separate Files?
-
-- HR staff can update team members without touching code
-- Clear separation between data and logic
-- Easier maintenance and troubleshooting
-
-## 📁 Teams.gs - Data Configuration
-
-### EMPLOYEES Object
-
-Maps employee/intern IDs to their information:
-
-```javascript
-const EMPLOYEES = {
-  // Regular employees (IDs from OrangeHRM)
-  '0005': { name: 'Pathum Jayathissa', email: 'pathum@longwapps.com' },
-  '0007': { name: 'Chamath Lakmuthu', email: 'chamath@longwapps.com' },
-  
-  // Interns (custom IDs starting with 'I')
-  'I001': { name: 'Intern One', email: 'intern1@longwapps.com' }
-};
-```
-
-**Rules:**
-- Employee IDs must match OrangeHRM exactly (e.g., '0005', '0007')
-- Intern IDs must start with 'I' (e.g., 'I001', 'I002')
-- Each person needs both `name` and `email`
-
-### TEAMS Array
-
-Defines team structure:
-
-```javascript
-const TEAMS = [
-  {
-    teamName: 'Development Team',
-    members: ['0005', '0007', 'I001']  // Mix of employees and interns
-  },
-  {
-    teamName: 'Design Team',
-    members: ['0007', '0008', 'I002']
-  }
-];
-```
-
-**Features:**
-- Members can be in multiple teams
-- Interns and employees in same array
-- Simple to add/remove members
-
-## 💻 Code.gs - Processing Logic
-
-### Main Functions
-
-#### `sendDailyLeaveReport()`
-Sends leave report for today's date. Use this for daily triggers.
-
-```javascript
-// Runs automatically via trigger
-sendDailyLeaveReport()
-```
-
-#### `sendLeaveReportForDate(dateString)`
-Sends leave report for any specific date.
-
-```javascript
-// Check specific date
-sendLeaveReportForDate('2025-11-25')
-
-// Check yesterday
-sendLeaveReportForDate('2025-12-13')
-```
-
-#### `testSpecificDate()`
-Helper function for testing. Edit the date in the function and run.
-
-```javascript
-function testSpecificDate() {
-  sendLeaveReportForDate('2025-11-25');  // Change date here
-}
-```
-
-### Test Functions
-
-#### `testScriptProperties()`
-Verifies credentials are set correctly.
-
-```javascript
-testScriptProperties()
-// Output: Username is set: Yes, Password is set: Yes
-```
-
-#### `testTeamConfiguration()`
-Validates team configuration.
-
-```javascript
-testTeamConfiguration()
-// Output: Shows all teams, members, and validates IDs
-```
-
-## ⚙️ Setup Instructions
-
-### Step 1: Create Project
-
-1. Go to [script.google.com](https://script.google.com)
-2. Click **New Project**
-3. Rename to "OrangeHRM Leave Notifier"
-
-### Step 2: Add Files
-
-1. Replace default `Code.gs` with your main code
-2. Click **+** → **Script** → Name it `Teams`
-3. Paste Teams.gs code
-
-### Step 3: Configure Credentials
-
-1. Click **Project Settings** (gear icon)
-2. Scroll to **Script Properties**
-3. Click **Add script property**
-4. Add two properties:
-   - Property: `HRM_USERNAME` | Value: your username
-   - Property: `HRM_PASSWORD` | Value: your password
-
-### Step 4: Update Teams.gs
-
-1. Open `Teams.gs`
-2. Update `EMPLOYEES` with your company's people
-3. Update `TEAMS` with your team structure
-4. Save
-
-### Step 5: Test
-
-1. Run `testScriptProperties()` to verify credentials
-2. Run `testTeamConfiguration()` to verify teams
-3. Run `testSpecificDate()` to test with a known date
-
-### Step 6: Set Up Daily Trigger
-
-1. Click **Triggers** (clock icon in left sidebar)
-2. Click **Add Trigger**
-3. Configure:
-   - Function: `sendDailyLeaveReport`
-   - Event source: **Time-driven**
-   - Type: **Day timer**
-   - Time of day: Choose preferred time (e.g., 8am-9am)
-4. Click **Save**
-
-## 🔧 How It Works
-
-### Authentication Flow
-
-1. Fetch login page → Extract CSRF token and initial cookie
-2. Submit login with credentials → Get session cookie
-3. Access dashboard → Validate session
-4. Call API with session cookie → Fetch leave data
-
-### Email Distribution Logic
-
-1. **Fetch leave data** from API for specified date
-2. **Identify employees on leave** from API response
-3. **For each employee on leave:**
-   - Find which teams they belong to
-   - Get all team members
-   - Exclude the person on leave from recipients
-   - Add to email queue (avoiding duplicates)
-4. **Send consolidated emails** to each recipient
-
-### Why Interns Always Get Emails
-
-Interns are not in the OrangeHRM system, so they never appear in the leave API response. The logic simply excludes people who ARE on leave, which means interns automatically always receive notifications.
-
-### Duplicate Prevention
-
-If someone is in multiple teams and multiple team members are on leave, they receive ONE email listing all relevant team members on leave.
-
-## 📧 Email Format
-
-### Subject
-```
-Notification of Team Member's Leave - Thursday, November 21, 2024
-```
-
-### Body
-```
-Team Member Leave Notification
-
-Date: Thursday, November 21, 2024
-
-The following team members are on leave:
-
-┌─────────────────────┬──────────────┐
-│ Name                │ Duration     │
-├─────────────────────┼──────────────┤
-│ Pathum Jayathissa   │ Full Day     │
-│ Chamath Lakmuthu    │ Half Day     │
-└─────────────────────┴──────────────┘
-
-Automated notification from OrangeHRM
-```
-
-## 🎯 Key Features
-
-### ✅ Smart Notifications
-- People on leave don't receive emails
-- No duplicate emails
-- Team-based distribution
-
-### ✅ Flexible Date Handling
-- Automated daily reports
-- Manual date checking
-- Historical data retrieval
-
-### ✅ Easy Maintenance
-- Non-technical staff can update teams
-- Clear separation of concerns
-- Built-in validation
-
-### ✅ Name Customization
-- Uses names from Teams.gs instead of system names
-- Falls back to system names if not configured
-- Consistent naming across emails
-
-## 🔍 Troubleshooting
-
-### No emails received
-
-**Check:**
-1. Run `testScriptProperties()` - Are credentials set?
-2. Run `testTeamConfiguration()` - Any validation errors?
-3. Check Execution Log - Any error messages?
-4. Verify team members have correct email addresses
-
-### Person didn't receive email
-
-**Possible reasons:**
-1. They are on leave (intentional - they shouldn't receive it)
-2. Their ID is not in any team's members array
-3. Their email in EMPLOYEES is incorrect
-4. They are not in the same team as person on leave
-
-### Duplicate emails
-
-This shouldn't happen. If it does:
-1. Check execution log for errors
-2. Verify EMPLOYEES IDs are unique
-3. Contact developer
-
-### Login fails
-
-**Check:**
-1. Credentials in Script Properties are correct
-2. OrangeHRM URL is accessible
-3. No recent password changes
-4. Check execution log for specific error
-
-## 📝 Common Tasks
-
-### Add New Employee
-
-1. Open `Teams.gs`
-2. Add to EMPLOYEES:
-```javascript
-'0025': { name: 'New Employee', email: 'new@longwapps.com' }
-```
-3. Add to relevant team(s):
-```javascript
-members: ['0005', '0007', '0025']
-```
-4. Save
-
-### Add New Intern
-
-1. Open `Teams.gs`
-2. Choose next intern ID (e.g., 'I003')
-3. Add to EMPLOYEES:
-```javascript
-'I003': { name: 'New Intern', email: 'intern3@longwapps.com' }
-```
-4. Add to team:
-```javascript
-members: ['0005', '0007', 'I003']
-```
-5. Save
-
-### Add New Team
-
-1. Open `Teams.gs`
-2. Add to TEAMS array:
-```javascript
-{
-  teamName: 'New Team',
-  members: ['0005', '0007', 'I001']
-}
-```
-3. Save
-
-### Update Email Address
-
-1. Open `Teams.gs`
-2. Find person in EMPLOYEES
-3. Update email field
-4. Save
-
-### Check Specific Past Date
-
-1. Open `Code.gs`
-2. Find `testSpecificDate()` function
-3. Change date:
-```javascript
-sendLeaveReportForDate('2025-11-15');
-```
-4. Run `testSpecificDate`
-
-## 🛡️ Security Notes
-
-- Passwords stored in Script Properties (encrypted by Google)
-- Session cookies are temporary and cleared after use
-- No sensitive data in code files
-- Only authorized Google account can access script
-
-## 📊 Execution Log
-
-View logs: **Executions** in left sidebar
-
-**Log entries show:**
-- Start time
-- Employees on leave
-- Teams processing
-- Emails sent
-- Any errors
-
-## 🔄 Update History
-
-### Version 1.0
-- Initial release
-- Basic leave notification
-- Team-based distribution
-- Intern support
-
-## 💡 Tips
-
-1. **Test before deploying** - Use `testSpecificDate()` with known data
-2. **Keep Teams.gs updated** - Remove employees who leave company
-3. **Monitor execution log** - Check daily for any issues
-4. **Validate configuration** - Run `testTeamConfiguration()` after updates
-5. **Use meaningful intern IDs** - e.g., 'I001_John' for easier identification
-
-## 📞 Support
-
-For issues or questions:
-1. Check execution log for error messages
-2. Run test functions to diagnose
-3. Verify Teams.gs configuration
-4. Contact your development team
-
-## 📄 License
-
-Internal company use only.
+Powered by **Google Apps Script**, developed in **VS Code**, and version-controlled using **GitHub + clasp**, this project provides a clean and automated workflow for organizations using OrangeHRM.
 
 ---
 
-**Last Updated:** December 2024  
-**Maintained By:** Development Team  
-**Contact:** dev-team@longwapps.com
+## 👨‍💻 Author
+Created by **Chathuka Upamith**
+
+📧 Email: [upamithc@gmail.com](mailto:upamithc@gmail.com)  
+💼 LinkedIn: [chathuka-upamith](https://www.linkedin.com/in/chathuka-upamith/)  
+🐙 GitHub: [ChathukaU](https://github.com/ChathukaU)
+
+
+
+---
+
+## 📋 What This Does
+
+- 🔄 **Fetches leave data** from OrangeHRM API daily
+- 📧 **Sends email alerts** to configured recipients
+- 👥 **Customizable team configurations** per department/team
+- ⏰ **Automated scheduling** via Google Apps Script triggers
+- 🎨 **HTML email templates** for professional notifications
+
+---
+
+## 🚀 Quick Start (VS Code + GitHub)
+
+### 1️⃣ Clone the repository
+```bash
+git clone https://github.com/your-org/leave-alert-system.git
+cd leave-alert-system
+````
+
+### 2️⃣ Open the project
+
+```bash
+code .
+```
+
+### 3️⃣ Install clasp (if not installed)
+
+```bash
+npm install -g @google/clasp
+```
+
+### 4️⃣ Enable Apps Script API (**REQUIRED**)
+1. Go to: https://script.google.com/home/usersettings
+2. Enable **Google Apps Script API**
+
+⚠️ **Without this step, clasp will NOT work!**
+
+### 5️⃣ Authenticate
+
+```bash
+clasp login
+```
+
+### 6️⃣ Link to a Google Apps Script project
+
+**Create new**
+
+```bash
+clasp create --type standalone --title "Leave-Alert-System"
+```
+
+**Or connect to an existing**
+
+```bash
+clasp clone <SCRIPT_ID>
+```
+*Find your Script ID in the Apps Script editor: Project Settings → Script ID*
+
+### 7️⃣ Configure your settings
+```bash
+cp Config.example.js Config.js
+```
+Edit `Config.js` with your credentials and team details.
+
+### 8️⃣ Push code to Google Apps Script
+```bash
+clasp push
+```
+
+### 9️⃣ Open & run the script in browser
+
+**Open the script in your browser:**
+```bash
+clasp open-script
+```
+
+**In the Apps Script web editor:**
+1. Select the `sendLeaveAlert` function from the dropdown
+2. Click **Run** to test manually
+3. Authorize permissions when prompted
+4. Set up a **daily trigger**:
+   - Click **Triggers** (clock icon in sidebar)
+   - **Add Trigger** → Run `sendLeaveAlert`
+   - Choose **Time-driven** → **Day timer** → Select time (e.g., 8:00-9:00 AM)
+
+---
+
+## 🛠 Common clasp Commands
+
+| Command                | Purpose                   |
+| ---------------------- | ------------------------- |
+| `clasp push`           | Push local code → Google  |
+| `clasp pull`           | Pull latest code ← Google |
+| `clasp open-script`           | Open Apps Script editor   |
+| `clasp logs`           | Check execution logs      |
+| `clasp run <function>` | Run a function manually   |
+| `clasp status`         | Show pending changes      |
+
+---
+
+## 📁 Project Structure
+
+```
+├── Code.js                 # Main script logic and leave fetching
+├── Config.js               # OrangeHRM credentials & team config (⚠️ SECRET)
+├── Config.example.js       # Example configuration template
+├── EmailTemplate.html      # HTML email template
+├── appsscript.json         # Apps Script project manifest
+├── .clasp.json             # Clasp project configuration (⚠️ SECRET)
+├── .gitignore              # Excludes sensitive files
+├── README.md               # This file
+└── GUIDE.md                # Detailed setup and troubleshooting
+```
+
+---
+
+## 🔒 Security
+
+The following files are **excluded from GitHub** to protect sensitive data:
+
+```gitignore
+.clasp.json
+Config.js
+```
+
+**Always use `Config.example.js` as a template** and create your own `Config.js` locally.
+
+---
+
+## ⚙️ Configuration Overview
+
+Edit `Config.js` to set up:
+- **OrangeHRM API credentials** (base URL, API token)
+- **Email recipients** for alerts
+- **Team/employee mappings**
+- **Email subject and sender name**
+
+See [GUIDE.md](GUIDE.md) for detailed configuration instructions.
+
+---
+
+## 📧 Email Alerts
+
+The system sends formatted HTML emails with:
+- Employees currently on leave
+- Leave dates and types
+- Upcoming leave notifications
+- Custom branding and styling
+
+Customize the template in `EmailTemplate.html`.
+
+---
+
+## 🐛 Troubleshooting
+
+### clasp commands not working?
+- Ensure Apps Script API is enabled: https://script.google.com/home/usersettings
+- Run `clasp login` to re-authenticate
+
+### Push conflicts?
+```bash
+clasp pull    # Get latest from Google
+# Resolve conflicts manually
+clasp push    # Push your changes
+```
+
+### Script not running automatically?
+- Check **Triggers** in the Apps Script editor
+- Review execution logs: `clasp logs` or in the web editor
+
+### Email not sending?
+- Verify email addresses in `Config.js`
+- Check Gmail sending limits (500 emails/day for standard accounts)
+- Review execution logs for errors
+
+For more troubleshooting tips, see [GUIDE.md](GUIDE.md).
+
+---
+
+## 📚 Documentation
+
+- [GUIDE.md](GUIDE.md) – Complete setup, configuration, and troubleshooting
+- [Config.example.js](Config.example.js) – Configuration template
+- [Google Apps Script Docs](https://developers.google.com/apps-script)
+- [clasp Documentation](https://github.com/google/clasp)
+
+---
+
+## 🤝 Contributing
+
+This is an internal tool, but improvements are welcome:
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Submit a pull request
+
+---
+
+## 📄 License
+
+**Internal Company Use Only – Not for Public Distribution**
+
+---
+
+🗓️ **Last Updated:** December 2025  
+⭐ **Star this repo** if you find it useful!

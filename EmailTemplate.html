@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body { 
+      margin: 0; 
+      padding: 0; 
+      background: #f3f3f5; 
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; 
+    }
+    
+    .wrapper { 
+      max-width: 650px; 
+      margin: 40px auto; 
+      background: white; 
+      border-radius: 8px;
+    }
+
+    /* Header with Logo */
+    .header {
+      background: #E8E0FA;
+      padding: 28px 35px;
+      border-radius: 8px 8px 0 0;
+      text-align: center;
+      border-bottom: 3px solid #6A3BBB;
+    }
+    .header img { 
+      max-height: 48px; 
+      display: block;
+      margin: 0 auto;
+    }
+
+    /* Title */
+    .title {
+      margin: 32px 35px 0;
+      font-size: 22px;
+      font-weight: 600;
+      color: #2b2442;
+      letter-spacing: -0.3px;
+    }
+
+    /* Date Info Box */
+    .date-box {
+      margin: 20px 35px 0;
+      padding: 16px 20px;
+      border-left: 4px solid #6A3BBB;
+      background: #F7F4FF;
+      color: #3c3553;
+      font-size: 14px;
+      border-radius: 4px;
+      line-height: 1.6;
+    }
+    .date-box strong {
+      color: #6A3BBB;
+      margin-right: 8px;
+    }
+
+    /* Introduction Text */
+    .intro {
+      margin: 24px 35px 0;
+      color: #4a4a4a;
+      font-size: 14px;
+      line-height: 1.65;
+    }
+
+    /* Notification Table */
+    .leave-table {
+      width: calc(100% - 70px);
+      margin: 24px 35px 0;
+      border-collapse: collapse;
+      font-size: 14px;
+      border: 1px solid #e8e8ed;
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    
+    .leave-table th {
+      text-align: left;
+      padding: 12px 16px;
+      background: #fafafa;
+      border-bottom: 1px solid #e8e8ed;
+      font-weight: 600;
+      color: #5a5a5a;
+      font-size: 13px;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    
+    .leave-table td {
+      padding: 14px 16px;
+      border-bottom: 1px solid #f0f0f5;
+      color: #4a4a4a;
+    }
+    
+    .leave-table tr:last-child td {
+      border-bottom: none;
+    }
+    
+    .leave-table tbody tr:nth-child(even) {
+      background: #fafbfc;
+    }
+    
+    .leave-table tbody tr:nth-child(odd) {
+      background: #ffffff;
+    }
+    
+    .leave-table .employee-name {
+      font-weight: 600;
+      color: #1a1a1a;
+      font-size: 15px;
+    }
+
+    /* Reminder List */
+    .reminder-list { 
+      list-style: none; 
+      margin: 24px 35px 0; 
+      padding: 0; 
+      background: #fafbfc;
+      border: 1px solid #e8e8ed;
+      border-radius: 6px;
+    }
+    
+    .reminder-list li {
+      padding: 16px 24px;
+      border-bottom: 1px solid #e8e8ed;
+      font-size: 14px;
+      color: #1a1a1a;
+    }
+    
+    .reminder-list li:last-child {
+      border-bottom: none;
+    }
+
+    .badge {
+      background: #F4F0FF;
+      color: #6A3BBB;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      margin-left: 8px;
+      white-space: nowrap;
+      display: inline-block;
+    }
+    
+    /* Note Section */
+    .note-box {
+      margin: 28px 35px 0;
+      padding: 14px 18px;
+      background: #f8f9fa;
+      border-radius: 6px;
+      font-size: 13px;
+      color: #5a5a5a;
+      line-height: 1.6;
+    }
+
+    /* Footer */
+    .footer {
+      margin: 32px 35px 0;
+      padding: 24px 0 32px;
+      font-size: 12px;
+      color: #7a7a7a;
+      text-align: center;
+      border-top: 1px solid #e8e8ed;
+      line-height: 1.6;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrapper">
+
+    <!-- Header with Logo -->
+    <div class="header">
+      <img
+        src="https://www.longwapps.com/assets/images/logo.png"
+        alt="LONGWApps"
+        width="240" 
+        height="48"
+        style="display: block; margin: 0 auto; border: 0; color: #6A3BBB; font-size: 18px; font-weight: bold;"
+      >
+    </div>
+
+    <!-- Title -->
+    <div class="title">
+      <? if (isNotification) { ?>
+        Upcoming Team Member Leaves
+      <? } else { ?>
+        Today’s Team Member Leaves
+      <? } ?>
+    </div>
+
+    <!-- Date Information -->
+    <div class="date-box">
+      <strong><? if (isNotification) { ?>Starting:<? } else { ?>Date:<? } ?></strong>
+      <?= formattedDate ?>
+    </div>
+
+    <!-- Introduction -->
+    <p class="intro">
+      <? if (isNotification) { ?>
+        The following team members are scheduled to be on leave starting tomorrow. Please plan accordingly for coverage and task delegation.
+      <? } else { ?>
+        The following team members are on leave today. Please adjust schedules and task planning as necessary.
+      <? } ?>
+    </p>
+
+    <!-- Notification Table -->
+    <? if (isNotification) { ?>
+      <table class="leave-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Type</th>
+            <th>Duration</th>
+          </tr>
+        </thead>
+        <tbody>
+          <? leaves.forEach(function(leave) { ?>
+            <tr>
+              <td class="employee-name"><?= leave.name ?></td>
+              <td><?= leave.type ?></td>
+              <td><?= leave.duration ?></td>
+            </tr>
+          <? }); ?>
+        </tbody>
+      </table>
+    <? } ?>
+
+    <!-- Reminder List -->
+    <? if (!isNotification) { ?>
+      <ul class="reminder-list">
+        <? leaves.forEach(function(leave) { ?>
+          <li>
+            <strong><?= leave.name ?></strong>
+            <? if (leave.duration) { ?>
+              <span class="badge"><?= leave.duration ?></span>
+            <? } ?>
+          </li>
+        <? }); ?>
+      </ul>
+    <? } ?>
+
+    <!-- Additional Note -->
+    <div class="note-box">
+      <? if (isNotification) { ?>
+        Please let us know if there are any specific matters you would like addressed during the absence of any team member, or if you have questions regarding these leave arrangements.
+      <? } else { ?>
+        If you need to discuss any urgent matters related to ongoing projects, please contact your project lead for assistance.
+      <? } ?>
+    </div>
+
+    <!-- Footer -->
+    <div class="footer">
+      This is an automated email from the Leave Alert System.
+    </div>
+
+  </div>
+</body>
+</html>

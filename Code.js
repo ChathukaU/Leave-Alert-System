@@ -481,106 +481,100 @@ function dispatchLeaveEmails(leaves, dateString, mode) {
  */
 function sendLeaveEmail(toEmail, leaves, dateString, mode) {
   mode = mode || 'reminder';
-  
-  const dateObj = new Date(dateString + 'T00:00:00');
-  const formattedDate = Utilities.formatDate(dateObj, Session.getScriptTimeZone(), 'EEEE, MMMM dd, yyyy');
-  
   const isNotification = mode === 'notification';
-  const subject = isNotification 
-    ? 'Notification: Upcoming Team Member Leave - Starting ' + formattedDate
-    : 'Reminder: Team Member\'s Leave - ' + formattedDate;
-  
-  let htmlBody = '<html><body style="font-family: Arial, sans-serif;">';
-  htmlBody += '<h2 style="color: #FF7B1D;">' + (isNotification ? 'Upcoming Team Member Leave' : 'Team Member Leave Reminder') + '</h2>';
-  htmlBody += '<p><strong>' + (isNotification ? 'Starting Date:' : 'Date:') + '</strong> ' + formattedDate + '</p>';
-  htmlBody += '<p>' + (isNotification ? 'The following team members will be on leave starting tomorrow:' : 'The following team members are on leave today:') + '</p>';
-  
-  htmlBody += '<table border="1" cellpadding="10" cellspacing="0" style="border-collapse: collapse; width: 100%; max-width: 600px; margin-top: 15px;">';
-  htmlBody += '<thead style="background-color: #FF7B1D; color: white;">';
-  htmlBody += '<tr><th style="text-align: left;">Name</th><th style="text-align: left;">Type</th><th style="text-align: left;">Duration</th></tr>';
-  htmlBody += '</thead><tbody>';
-  
-  leaves.forEach(function(leave) {
+
+  // Format date
+  const dateObj = new Date(dateString + 'T00:00:00');
+  const formattedDate = Utilities.formatDate(
+    dateObj,
+    Session.getScriptTimeZone(),
+    'EEEE, MMMM dd, yyyy'
+  );
+
+  // Subject
+  const subject = isNotification
+    ? 'Notification: Upcoming Team Members on Leave'
+    : 'Reminder: Team Members on Leave Today – ' + formattedDate;
+
+  // Prepare leave data
+  const formattedLeaves = leaves.map(function (leave) {
     const employeeId = leave.employee.employeeId;
-    const fullName = EMPLOYEES[employeeId] && EMPLOYEES[employeeId].name ? 
-                     EMPLOYEES[employeeId].name :
-                     leave.employee.firstName + ' ' + 
-                     (leave.employee.middleName ? leave.employee.middleName + ' ' : '') + 
-                     leave.employee.lastName;
-    
-    const leaveTypeName = leave.leaveType ? leave.leaveType.name : 'Leave';
-    
-    // Format duration
-    let duration = '';
-    const fromDate = leave.dates.fromDate;
-    const toDate = leave.dates.toDate;
-    
-    // Check for multi-day leave first
-    if (toDate && fromDate !== toDate) {
-      const fromDateObj = new Date(fromDate + 'T00:00:00');
-      const toDateObj = new Date(toDate + 'T00:00:00');
-      const formattedFrom = Utilities.formatDate(fromDateObj, Session.getScriptTimeZone(), 'MMM dd');
-      const formattedTo = Utilities.formatDate(toDateObj, Session.getScriptTimeZone(), 'MMM dd, yyyy');
-      duration = leave.noOfDays + ' day(s): ' + formattedFrom + ' - ' + formattedTo;
-    } else if (leave.dates.durationType && leave.dates.durationType.type) {
-      const durationType = leave.dates.durationType.type;
-      if (durationType === 'full_day') {
-        duration = 'Full Day';
-      } else if (durationType === 'half_day_morning') {
+
+    const name =
+      (EMPLOYEES[employeeId] && EMPLOYEES[employeeId].name) ||
+      leave.employee.firstName + ' ' +
+      (leave.employee.middleName ? leave.employee.middleName + ' ' : '') +
+      leave.employee.lastName;
+
+    let duration = null;
+    const from = leave.dates.fromDate;
+    const to = leave.dates.toDate;
+    const type = leave.dates.durationType && leave.dates.durationType.type;
+
+    if (isNotification) {
+      if (to && from !== to) {
+        const fromDateObj = new Date(from + 'T00:00:00');
+        const toDateObj = new Date(to + 'T00:00:00');
+        const formattedFrom = Utilities.formatDate(fromDateObj, Session.getScriptTimeZone(), 'MMM dd');
+        const formattedTo = Utilities.formatDate(toDateObj, Session.getScriptTimeZone(), 'MMM dd');
+        duration = leave.noOfDays + ' day(s): ' + formattedFrom + ' - ' + formattedTo;
+      } else if (type === 'half_day_morning') {
         duration = 'Half Day (Morning)';
-      } else if (durationType === 'half_day_afternoon') {
+      } else if (type === 'half_day_afternoon') {
         duration = 'Half Day (Afternoon)';
-      } else if (durationType === 'specify_time') {
+      } else if (type === 'specify_time') {
         duration = leave.dates.startTime + ' - ' + leave.dates.endTime;
       } else {
-        duration = durationType.replace(/_/g, ' ');
+        duration = 'Full Day';
       }
     } else {
-      duration = 'Full Day';
+      if (type === 'half_day_morning') {
+        duration = 'Half Day (Morning)';
+      } else if (type === 'half_day_afternoon') {
+        duration = 'Half Day (Afternoon)';
+      } else if (type === 'specify_time') {
+        duration = leave.dates.startTime + ' - ' + leave.dates.endTime;
+      }
     }
-    
-    htmlBody += '<tr>';
-    htmlBody += '<td>' + fullName + '</td>';
-    htmlBody += '<td>' + leaveTypeName + '</td>';
-    htmlBody += '<td>' + duration + '</td>';
-    htmlBody += '</tr>';
+
+    return {
+      name: name,
+      type: leave.leaveType && leave.leaveType.name ? leave.leaveType.name : 'Leave',
+      duration: duration
+    };
   });
-  
-  htmlBody += '</tbody></table>';
-  htmlBody += '<br><p style="color: #666; font-size: 12px;">Automated ' + (isNotification ? 'notification' : 'reminder') + ' from OrangeHRM Leave Alert System</p>';
-  htmlBody += '</body></html>';
-  
-  let plainBody = (isNotification ? 'Upcoming Team Member Leave - Starting ' : 'Team Member Leave Reminder - ') + formattedDate + '\n\n';
-  plainBody += (isNotification ? 'The following team members will be on leave starting tomorrow:\n\n' : 'The following team members are on leave today:\n\n');
-  
-  leaves.forEach(function(leave) {
-    const employeeId = leave.employee.employeeId;
-    const fullName = EMPLOYEES[employeeId] && EMPLOYEES[employeeId].name ? 
-                     EMPLOYEES[employeeId].name :
-                     leave.employee.firstName + ' ' + 
-                     (leave.employee.middleName ? leave.employee.middleName + ' ' : '') + 
-                     leave.employee.lastName;
-    
-    const leaveTypeName = leave.leaveType ? leave.leaveType.name : 'Leave';
-    
-    let duration = '';
-    const fromDate = leave.dates.fromDate;
-    const toDate = leave.dates.toDate;
-    
-    if (toDate && fromDate !== toDate) {
-      duration = leave.noOfDays + ' day(s): ' + fromDate + ' to ' + toDate;
-    } else if (leave.dates.durationType && leave.dates.durationType.type) {
-      const durationType = leave.dates.durationType.type;
-      duration = durationType === 'full_day' ? 'Full Day' : durationType.replace(/_/g, ' ');
-    } else {
-      duration = 'Full Day';
-    }
-    
-    plainBody += '- ' + fullName + ' (' + leaveTypeName + ' - ' + duration + ')\n';
+
+  // Build template
+  const template = HtmlService.createTemplateFromFile('EmailTemplate');
+  template.isNotification = isNotification;
+  template.formattedDate = formattedDate;
+  template.leaves = formattedLeaves;
+
+  const htmlBody = template.evaluate().getContent();
+
+  // Plain text fallback
+  let plainBody =
+    (isNotification ? 'Upcoming Team Member Leaves' : "Today’s Team Member Leaves") + '\n' +
+    template.title + '\n' +
+    formattedDate + '\n\n' +
+    (isNotification
+      ? 'The following team members will be on leave starting tomorrow:'
+      : 'The following team members are on leave today:') + '\n\n';
+
+  formattedLeaves.forEach(function (l) {
+    plainBody += '- ' + l.name +
+      (isNotification
+        ? ' (' + l.type + ' - ' + l.duration + ')'
+        : l.duration ? ' - ' + l.duration : '') +
+      '\n';
   });
-  
-  plainBody += '\n---\nAutomated ' + (isNotification ? 'notification' : 'reminder') + ' from OrangeHRM Leave Alert System';
-  
+
+  plainBody +=
+    '\n---\nThis is an automated ' +
+    (isNotification ? 'notification' : 'reminder') +
+    ' email from the Leave Alert System.';
+
+  // Send email
   try {
     MailApp.sendEmail({
       to: toEmail,
