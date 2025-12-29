@@ -125,7 +125,8 @@ clasp open-script
 ├── EmailTemplate.html      # HTML email template
 ├── appsscript.json         # Apps Script project manifest
 ├── .clasp.json             # Clasp project configuration (⚠️ SECRET)
-├── .gitignore              # Excludes sensitive files
+├── .gitignore              # Excludes sensitive files from Github
+├── .claspignore            # Excludes sensitive files from Apps Script
 ├── README.md               # This file
 └── GUIDE.md                # Detailed setup and troubleshooting
 ```
