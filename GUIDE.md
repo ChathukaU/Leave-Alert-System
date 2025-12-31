@@ -92,7 +92,7 @@ Before automating, test manually:
    - Function: `sendDailyLeaveNotification`
    - Event source: **Time-driven**
    - Type: **Day timer**
-   - Time: **4:00 PM to 5:00 PM** (or your preferred time)
+   - Time: **10:00 AM to 11:00 AM** (or your preferred time)
 3. Click **Save**
 
 ✅ **Done!** The system will now run automatically every day.
@@ -111,13 +111,13 @@ Find the `EMPLOYEES` section and add a new line:
 
 ```javascript
 const EMPLOYEES = {
-  '0005': { name: 'Pathum Jayathissa', email: 'pathum@longwapps.com' },
+  '0020': { name: 'Chathuka Upamith', email: 'chathuka@longwapps.com' },
   '0025': { name: 'New Employee Name', email: 'new@longwapps.com' },  // Add this
 };
 ```
 
 **Rules:**
-- Employee ID must match OrangeHRM (e.g., `'0005'`, `'0020'`)
+- Employee ID must match OrangeHRM (e.g., `'0001'`, `'0020'`)
 - Intern IDs start with `'I'` (e.g., `'I001'`, `'I002'`)
 - Both `name` and `email` are required
 
@@ -128,7 +128,7 @@ Find the `TEAMS` section and add:
 ```javascript
 const TEAMS = [
   {
-    teamName: 'Galuma Team',
+    teamName: 'Dev Team',
     members: ['0005', '0007', '0020']
   },
   {
@@ -151,6 +151,63 @@ Just add their ID to the `members` array:
 
 **Note:** People can be in multiple teams - they'll still only get ONE email.
 
+### Add a Manual Leave
+
+For employees not in OrangeHRM (interns, contractors), find the `MANUAL_LEAVES` section and add:
+
+```javascript
+const MANUAL_LEAVES = [
+  // Full day leave (type is optional - default type to full )
+  { 
+    employeeId: 'I001', 
+    fromDate: '2025-07-26', 
+    toDate: '2025-07-26'
+  },
+  
+  // Multiple days
+  { 
+    employeeId: '0005', 
+    fromDate: '2025-07-26', 
+    toDate: '2025-07-29'
+  },
+  
+  // Half day morning
+  { 
+    employeeId: 'I002', 
+    fromDate: '2025-07-26', 
+    toDate: '2025-07-26',
+    type: 'morning'
+  },
+  
+  // Half day afternoon
+  { 
+    employeeId: '0020', 
+    fromDate: '2025-07-26', 
+    toDate: '2025-07-26',
+    type: 'afternoon'
+  },
+  
+  // Specific time
+  { 
+    employeeId: 'I003', 
+    fromDate: '2025-07-26', 
+    toDate: '2025-07-26',
+    type: 'time',
+    startTime: '13:00',
+    endTime: '17:00'
+  }
+];
+```
+
+**Rules:**
+- Date format: `'YYYY-MM-DD'` (e.g., `'2025-07-26'`)
+- Employee ID must exist in `EMPLOYEES`
+- Full day: No `type` needed (it's the default)
+- Half day/time: Only for single day (fromDate = toDate)
+- Time format: 24-hour (e.g., `'13:00'`, `'16:30'`)
+
+**Note:** Manual leaves are automatically included in daily emails alongside OrangeHRM data.
+
 ---
 
 ## 🧪 Manual Testing
@@ -166,7 +223,7 @@ Just add their ID to the `members` array:
 1. Open `Config.js`
 2. Change `MANUAL_REMINDER_DATE`:
    ```javascript
-   const MANUAL_REMINDER_DATE = '2025-12-20';  // Change this date
+   const MANUAL_REMINDER_DATE = '2025-07-26';  // Change this date
    ```
 3. Save
 4. Select function: `sendManualLeaveReminder`
@@ -177,7 +234,7 @@ Just add their ID to the `members` array:
 1. Open `Config.js`
 2. Change `MANUAL_NOTIFICATION_DATE`:
    ```javascript
-   const MANUAL_NOTIFICATION_DATE = '2025-12-20';
+   const MANUAL_NOTIFICATION_DATE = '2025-07-26';
    ```
 3. Save
 4. Select function: `sendManualLeaveNotification`
@@ -213,6 +270,10 @@ Just add their ID to the `members` array:
 - You are on leave (you already know!)
 - You are not in any team with the person on leave
 - Your email is not configured in `Config.js`
+
+### Interns leave 
+
+Interns are typically not in OrangeHRM. Add their leave information using `MANUAL_LEAVES`, and they will be included in team notifications just like regular employees.
 
 ---
 
@@ -280,6 +341,7 @@ Update the name in `Config.js`:
 |------|-------------|
 | Add new employee | Edit `Config.js` → `EMPLOYEES` |
 | Add new team | Edit `Config.js` → `TEAMS` |
+| Add manual leave | Edit `Config.js` → `MANUAL_LEAVES` |
 | Update email | Edit `Config.js` → `EMPLOYEES` |
 | Change trigger time | **Triggers** page → Edit trigger |
 | Test system | Run `testSystem` function |
@@ -305,6 +367,8 @@ Update the name in `Config.js`:
 3. **Use meaningful intern IDs** - e.g., `'I001'` for first intern
 4. **Check execution log regularly** - Catch issues early
 5. **Update credentials if password changes** - In Script Properties
+6. **Clean up old manual leaves** - Remove past dates periodically
+7. **For full day leaves** - No need to add `type` field (it defaults to full)
 
 ---
 

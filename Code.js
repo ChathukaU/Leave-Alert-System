@@ -254,16 +254,23 @@ function sendLeaveReminder(dateString) {
       statuses: [2, 3]  // 2 = Scheduled, 3 = Taken
     });
     
-    if (!leaveData || !leaveData.data) {
+    let leavesForDate = [];
+    
+    if (leaveData && leaveData.data) {
+      // Filter leaves that actually fall on the target date
+      leavesForDate = leaveData.data.filter(function(leave) {
+        const fromDate = leave.dates.fromDate;
+        const toDate = leave.dates.toDate || fromDate;
+        return dateString >= fromDate && dateString <= toDate;
+      });
+    } else {
       Logger.log('ERROR: Failed to fetch leave data');
-      return;
     }
     
-    // Filter leaves that actually fall on the target date
-    const leavesForDate = leaveData.data.filter(function(leave) {
-      const fromDate = leave.dates.fromDate;
-      const toDate = leave.dates.toDate || fromDate;
-      return dateString >= fromDate && dateString <= toDate;
+    // Add manual leaves
+    const manualLeaves = processManualLeaves(dateString, false);
+    manualLeaves.forEach(function(leave) {
+      leavesForDate.push(leave);
     });
     
     if (leavesForDate.length === 0) {
@@ -309,14 +316,21 @@ function sendLeaveNotification(startDate, statuses) {
       statuses: statuses
     });
     
-    if (!leaveData || !leaveData.data) {
+    let leavesStartingOnDate = [];
+    
+    if (leaveData && leaveData.data) {
+      // Filter to only include leaves that START on the target date
+      leavesStartingOnDate = leaveData.data.filter(function(leave) {
+        return leave.dates.fromDate === startDate;
+      });
+    } else {
       Logger.log('ERROR: Failed to fetch leave data');
-      return;
     }
     
-    // Filter to only include leaves that START on the target date (avoid redundant notifications)
-    const leavesStartingOnDate = leaveData.data.filter(function(leave) {
-      return leave.dates.fromDate === startDate;
+    // Add manual leaves that START on this date
+    const manualLeaves = processManualLeaves(startDate, true);
+    manualLeaves.forEach(function(leave) {
+      leavesStartingOnDate.push(leave);
     });
     
     if (leavesStartingOnDate.length === 0) {
@@ -393,6 +407,90 @@ function fetchLeaveRequests(sessionCookie, options) {
     Logger.log('Error fetching leave requests: ' + error.toString());
     return null;
   }
+}
+
+/**
+ * Process manual leaves for a specific date and return in OrangeHRM format
+ * @param {string} dateString - Date in yyyy-MM-dd format
+ * @param {boolean} startDateOnly - If true, only return leaves that START on this date
+ * @return {Array} Array of formatted leave objects ready to merge with OrangeHRM data
+ */
+function processManualLeaves(dateString, startDateOnly) {
+  // Check if manual leaves exist
+  if (typeof MANUAL_LEAVES === 'undefined' || !MANUAL_LEAVES || MANUAL_LEAVES.length === 0) {
+    return [];
+  }
+  
+  const formattedLeaves = [];
+  let processedCount = 0;
+  
+  MANUAL_LEAVES.forEach(function(leave) {
+    // Filter by date
+    const isInRange = dateString >= leave.fromDate && dateString <= leave.toDate;
+    const startsOnDate = leave.fromDate === dateString;
+    
+    // Skip if doesn't match filter criteria
+    if (startDateOnly && !startsOnDate) return;
+    if (!startDateOnly && !isInRange) return;
+    
+    // Get employee info
+    const employeeInfo = EMPLOYEES[leave.employeeId];
+    if (!employeeInfo) {
+      Logger.log('Warning: Manual leave for unknown employee: ' + leave.employeeId);
+      return;
+    }
+    
+    // Calculate number of days
+    const fromDate = new Date(leave.fromDate + 'T00:00:00');
+    const toDate = new Date(leave.toDate + 'T00:00:00');
+    const daysDiff = Math.round((toDate - fromDate) / (1000 * 60 * 60 * 24)) + 1;
+    
+    // Determine duration type and days (default to 'full' if not specified)
+    const leaveType = leave.type || 'full';
+    let durationType = { type: 'full_day' };
+    let noOfDays = daysDiff;
+    
+    if (leaveType === 'morning') {
+      durationType = { type: 'half_day_morning' };
+      noOfDays = 0.5;
+    } else if (leaveType === 'afternoon') {
+      durationType = { type: 'half_day_afternoon' };
+      noOfDays = 0.5;
+    } else if (leaveType === 'time' && leave.startTime && leave.endTime) {
+      durationType = { type: 'specify_time' };
+      noOfDays = 0.5;
+    }
+    
+    // Build formatted leave object
+    formattedLeaves.push({
+      employee: {
+        employeeId: leave.employeeId,
+        firstName: employeeInfo.name.split(' ')[0],
+        middleName: '',
+        lastName: employeeInfo.name.split(' ').slice(1).join(' ') || ''
+      },
+      leaveType: {
+        name: 'Leave'
+      },
+      dates: {
+        fromDate: leave.fromDate,
+        toDate: leave.toDate,
+        durationType: durationType,
+        startTime: leave.startTime || null,
+        endTime: leave.endTime || null
+      },
+      noOfDays: noOfDays,
+      _isManual: true
+    });
+    
+    processedCount++;
+  });
+  
+  if (processedCount > 0) {
+    Logger.log('Processed ' + processedCount + ' manual leave(s) for ' + dateString);
+  }
+  
+  return formattedLeaves;
 }
 
 /**
