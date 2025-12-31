@@ -1,13 +1,5 @@
 /**
- * LONGWApps Leave Alert System using OrangeHRM
- * 
- * Setup:
- * 1. Project Settings → Script Properties:
- *    - HRM_USERNAME: your username
- *    - HRM_PASSWORD: your password
- * 2. Update Config.js with employee and team data
- * 3. Set daily trigger for sendDailyLeaveReminder
- * 4. For manual testing, change MANUAL_REMINDER_DATE in Config.js and run sendManualLeaveReminder
+ * LONGWApps Leave Alert System using OrangeHRM + Google Apps Script
  */
 
 const BASE_URL = 'https://www.longwapps.com/hrm/web';
