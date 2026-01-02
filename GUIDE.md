@@ -101,7 +101,7 @@ Before automating, test manually:
    - Time: **8:00 AM to 9:00 AM** (or your preferred time)
 4. Click **Save**
 
-**For Daily Notification (Tomorrow's Leaves):**
+**For Daily Notification (Next Business Day's Leaves):**
 1. Click **Add Trigger** again
 2. Configure:
    - Function: `sendDailyLeaveNotification`
@@ -111,6 +111,8 @@ Before automating, test manually:
 3. Click **Save**
 
 ✅ **Done!** The system will now run automatically every day.
+
+**Note:** Notifications are sent Monday-Friday only. If run on Friday, notifies about Monday's leaves (skips weekend).
 
 ---
 
@@ -265,11 +267,13 @@ const MANUAL_LEAVES = [
 - **Shows:** Who is on leave TODAY
 - **Format:** Simple list with duration (Full Day, Half Day, etc.)
 
-### 2. Advance Notification (Tomorrow's Leaves)
-- **Sent:** Every afternoon
+### 2. Advance Notification (Next Business Day's Leaves)
+- **Sent:** Every weekday morning (Mon-Fri)
 - **Subject:** "Notification: Upcoming Team Members on Leave"
-- **Shows:** Who is going on leave TOMORROW
+- **Shows:** Who is going on leave on the next business day
 - **Format:** Table with leave type and full duration
+
+**Note:** Friday notifications show Monday's leaves (skips weekend).
 
 ---
 

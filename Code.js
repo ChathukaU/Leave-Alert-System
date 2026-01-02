@@ -116,15 +116,24 @@ function sendDailyLeaveReminder() {
 }
 
 /**
- * Daily Leave Notification - Sends notification for leaves starting tomorrow
+ * Daily Leave Notification - Sends notification for next business day's leaves
  */
 function sendDailyLeaveNotification() {
   const today = new Date();
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-  const tomorrowDate = Utilities.formatDate(tomorrow, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  const dayOfWeek = today.getDay();
   
-  sendLeaveNotification(tomorrowDate, [2]);
+  // Skip if weekend - trigger should only run Mon-Fri
+  if (dayOfWeek === 0 || dayOfWeek === 6) {
+    Logger.log('Skipping notification - Today is weekend');
+    return;
+  }
+  // Calculate next business day
+  const daysToAdd = dayOfWeek === 5 ? 3 : 1; // Friday → Monday (3 days), else tomorrow (1 day)
+  const nextBusinessDay = new Date(today);
+  nextBusinessDay.setDate(today.getDate() + daysToAdd);
+  const nextBusinessDayString = Utilities.formatDate(nextBusinessDay, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  
+  sendLeaveNotification(nextBusinessDayString, [2]);
 }
 
 /**
