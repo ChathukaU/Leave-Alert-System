@@ -57,7 +57,22 @@ You need 3 files:
 
 ⚠️ **Important:** These credentials are encrypted and secure.
 
-### Step 4: Test the System
+### Step 4: Configure Admin Emails
+
+1. Open `Config.js` in the Apps Script editor
+2. Find the `ADMIN_EMAILS` at the top:
+   ```javascript
+   const ADMIN_EMAILS = ['upamihc@gmail.com', 'admin@company.com'];
+   ```
+3. Update with your admin email addresses
+4. Save
+
+**Admins receive error emails when:**
+- Authentication fails
+- OrangeHRM API connection fails
+- System encounters critical errors
+
+### Step 5: Test the System
 
 Before automating, test manually:
 
@@ -74,7 +89,7 @@ Before automating, test manually:
 ✓ ALL TESTS PASSED
 ```
 
-### Step 5: Set Up Automated Daily Triggers
+### Step 6: Set Up Automated Daily Triggers
 
 **For Daily Reminder (Today's Leaves):**
 1. Click **Triggers** ⏰ (clock icon on left sidebar)
@@ -284,8 +299,9 @@ Interns are typically not in OrangeHRM. Add their leave information using `MANUA
 **Check these:**
 1. Run `testSystem` - Are credentials working?
 2. Check **Execution log** for errors
-3. Verify trigger is active in **Triggers** page
-4. Confirm email addresses are correct in `Config.js`
+3. Check if admins received error email
+4. Verify trigger is active in **Triggers** page
+5. Confirm email addresses are correct in `Config.js`
 
 ### Someone Didn't Get Email
 
@@ -320,7 +336,7 @@ Update the name in `Config.js`:
 **What to look for:**
 - ✅ "Authentication successful"
 - ✅ "Reminder emails sent to team members"
-- ❌ Any red errors
+- ❌ Any red errors (admins will receive email notification)
 
 ---
 
@@ -343,6 +359,7 @@ Update the name in `Config.js`:
 | Add new team | Edit `Config.js` → `TEAMS` |
 | Add manual leave | Edit `Config.js` → `MANUAL_LEAVES` |
 | Update email | Edit `Config.js` → `EMPLOYEES` |
+| Update admin emails | Edit `Config.js` → `ADMIN_EMAILS` |
 | Change trigger time | **Triggers** page → Edit trigger |
 | Test system | Run `testSystem` function |
 | View logs | Click **Executions** in sidebar |

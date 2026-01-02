@@ -24,6 +24,7 @@ Created by **Chathuka Upamith**
 - 👥 **Customizable team configurations** per department/team
 - ⏰ **Automated scheduling** via Google Apps Script triggers
 - 🎨 **HTML email templates** for professional notifications
+- ⚠️ **Admin error notifications** - Automatic alerts when system fails
 
 ---
 
@@ -153,7 +154,8 @@ Edit `Config.js` to set up:
 - **OrangeHRM API credentials** (base URL, API token)
 - **Email recipients** for alerts
 - **Team/employee mappings**
-- **Email subject and sender name**
+- **Manual leave entries** for non-OrangeHRM employees
+- **Admin emails** for error notifications
 
 See [GUIDE.md](GUIDE.md) for detailed configuration instructions.
 

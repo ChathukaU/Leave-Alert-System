@@ -8,11 +8,11 @@
  * 2. Update EMPLOYEES with your team members
  * 3. Update TEAMS with your team structure
  * 4. Add MANUAL_LEAVES as needed
- * 5. Do NOT commit Config.js to GitHub (it's in .gitignore)
+ * 5. Update ADMIN_EMAILS with system administrator emails
  */
 
 // ============================================
-// MANUAL ALERT TRIGGERS (For Testing)
+// MANUAL ALERT TRIGGERS
 // ============================================
 // Change these dates to test with specific dates ('yyyy-MM-dd')
 
@@ -21,6 +21,12 @@ const MANUAL_REMINDER_DATE = '2025-07-26';
 
 // NOTIFICATION: Change this date and run sendManualLeaveNotification()
 const MANUAL_NOTIFICATION_DATE = '2025-07-26';
+
+// ============================================
+// ADMIN CONFIGURATION
+// ============================================
+// System administrators who receive error notifications
+const ADMIN_EMAILS = ['admin1@company.com', 'admin2@company.com'];
 
 // ============================================
 // EMPLOYEES & INTERNS

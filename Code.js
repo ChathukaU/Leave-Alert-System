@@ -220,7 +220,9 @@ function authenticateUser(username, password) {
     return sessionCookie;
     
   } catch (error) {
-    Logger.log('Error in authentication: ' + error.toString());
+    const errorMsg = 'Authentication error: ' + error.toString();
+    Logger.log(errorMsg);
+    notifyAdmin(errorMsg, 'authenticateUser');
     return null;
   }
 }
@@ -236,14 +238,18 @@ function sendLeaveReminder(dateString) {
     const password = PropertiesService.getScriptProperties().getProperty('HRM_PASSWORD');
     
     if (!username || !password) {
-      Logger.log('ERROR: Username or password not found in Script Properties');
+      const error = 'Username or password not found in Script Properties';
+      Logger.log('ERROR: ' + error);
+      notifyAdmin(error, 'sendLeaveReminder');
       return;
     }
     
     // Authenticate and get session cookie
     const sessionCookie = authenticateUser(username, password);
     if (!sessionCookie) {
-      Logger.log('ERROR: Authentication failed');
+      const error = 'Authentication failed - Unable to get session cookie';
+      Logger.log('ERROR: ' + error);
+      notifyAdmin(error, 'sendLeaveReminder');
       return;
     }
     
@@ -282,7 +288,9 @@ function sendLeaveReminder(dateString) {
     Logger.log('Success! Reminder emails sent to team members about ' + leavesForDate.length + ' employee(s) on leave');
     
   } catch (error) {
-    Logger.log('ERROR: ' + error.toString());
+    const errorMsg = 'Error in sendLeaveReminder: ' + error.toString();
+    Logger.log('ERROR: ' + errorMsg);
+    notifyAdmin(errorMsg, 'sendLeaveReminder');
   }
 }
 
@@ -298,14 +306,18 @@ function sendLeaveNotification(startDate, statuses) {
     const password = PropertiesService.getScriptProperties().getProperty('HRM_PASSWORD');
     
     if (!username || !password) {
-      Logger.log('ERROR: Username or password not found in Script Properties');
+      const error = 'Username or password not found in Script Properties';
+      Logger.log('ERROR: ' + error);
+      notifyAdmin(error, 'sendLeaveNotification');
       return;
     }
     
     // Authenticate and get session cookie
     const sessionCookie = authenticateUser(username, password);
     if (!sessionCookie) {
-      Logger.log('ERROR: Authentication failed');
+      const error = 'Authentication failed - Unable to get session cookie';
+      Logger.log('ERROR: ' + error);
+      notifyAdmin(error, 'sendLeaveNotification');
       return;
     }
     
@@ -342,7 +354,9 @@ function sendLeaveNotification(startDate, statuses) {
     Logger.log('Success! Notification emails sent to team members about ' + leavesStartingOnDate.length + ' upcoming leave(s)');
     
   } catch (error) {
-    Logger.log('ERROR: ' + error.toString());
+    const errorMsg = 'Error in sendLeaveNotification: ' + error.toString();
+    Logger.log('ERROR: ' + errorMsg);
+    notifyAdmin(errorMsg, 'sendLeaveNotification');
   }
 }
 
@@ -404,7 +418,9 @@ function fetchLeaveRequests(sessionCookie, options) {
     return JSON.parse(apiResponse.getContentText());
     
   } catch (error) {
-    Logger.log('Error fetching leave requests: ' + error.toString());
+    const errorMsg = 'Error fetching leave requests: ' + error.toString();
+    Logger.log(errorMsg);
+    notifyAdmin(errorMsg, 'fetchLeaveRequests');
     return null;
   }
 }
@@ -674,5 +690,40 @@ function sendLeaveEmail(toEmail, leaves, dateString, mode) {
     });
   } catch (error) {
     Logger.log('Error sending email to ' + toEmail + ': ' + error.toString());
+  }
+}
+
+/**
+ * Send error notification to system administrators
+ * @param {string} errorMessage - The error message to send
+ * @param {string} functionName - The function where the error occurred
+ */
+function notifyAdmin(errorMessage, functionName) {
+  if (typeof ADMIN_EMAILS === 'undefined' || !ADMIN_EMAILS || ADMIN_EMAILS.length === 0) {
+    Logger.log('ADMIN_EMAILS not configured - skipping admin notification');
+    return;
+  }
+  
+  const timestamp = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+  const subject = '⚠️ Leave Alert System Error - ' + functionName;
+  
+  const body = 'Leave Alert System Error Report\n' +
+               '================================\n\n' +
+               'Function: ' + functionName + '\n' +
+               'Timestamp: ' + timestamp + '\n' +
+               'Error: ' + errorMessage + '\n\n' +
+               '================================\n' +
+               'Please check the Apps Script execution logs for more details.\n\n' +
+               'This is an automated error notification from the Leave Alert System.';
+  
+  try {
+    MailApp.sendEmail({
+      to: ADMIN_EMAILS.join(','),
+      subject: subject,
+      body: body
+    });
+    Logger.log('Admin notification sent to: ' + ADMIN_EMAILS.join(', '));
+  } catch (emailError) {
+    Logger.log('Failed to send admin notification: ' + emailError.toString());
   }
 }
