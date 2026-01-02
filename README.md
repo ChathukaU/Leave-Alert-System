@@ -128,7 +128,8 @@ clasp open-script
 ├── .gitignore              # Excludes sensitive files from Github
 ├── .claspignore            # Excludes sensitive files from Apps Script
 ├── README.md               # This file
-└── GUIDE.md                # Detailed setup and troubleshooting
+├── GUIDE.md                # Detailed setup and troubleshooting
+└── GUIDE.html              # Detailed setup and troubleshooting
 ```
 
 ---

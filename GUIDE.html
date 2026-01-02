@@ -1,0 +1,429 @@
+================================================================================
+           📖 LEAVE ALERT SYSTEM - SETUP & MAINTENANCE GUIDE
+================================================================================
+
+
+TABLE OF CONTENTS
+─────────────────
+1. What This System Does
+2. Initial Setup (One-Time)
+3. Managing Teams & Employees
+4. Manual Testing
+5. Email Types
+6. How It Works
+7. Troubleshooting
+8. View Execution History
+9. Security
+10. Quick Reference
+11. Tips & Best Practices
+
+
+================================================================================
+1. 🎯 WHAT THIS SYSTEM DOES
+================================================================================
+
+✅ Automatically checks OrangeHRM for employees on leave
+✅ Sends daily reminder emails about who's on leave TODAY
+✅ Sends advance notification emails about who's going on leave TOMORROW
+✅ Only sends emails to team members (people on leave don't get emails)
+✅ No duplicate emails even if you're in multiple teams
+
+
+================================================================================
+2. 🚀 INITIAL SETUP (ONE-TIME)
+================================================================================
+
+STEP 1: CREATE THE GOOGLE APPS SCRIPT PROJECT
+──────────────────────────────────────────────
+1. Go to https://script.google.com
+2. Click "New Project"
+3. Rename it to "Leave Alert System"
+
+
+STEP 2: ADD THE CODE FILES
+───────────────────────────
+You need 3 files:
+
+File 1: Code.js
+  1. Delete the default code
+  2. Paste your Code.js content
+  3. Save (Ctrl+S or Cmd+S)
+
+File 2: Config.js
+  1. Click + button → Script
+  2. Name it "Config"
+  3. Paste your Config.js content
+  4. Save
+
+File 3: EmailTemplate.html
+  1. Click + button → HTML
+  2. Name it "EmailTemplate"
+  3. Paste your email template HTML
+  4. Save
+
+
+STEP 3: ADD YOUR ORANGEHRM LOGIN CREDENTIALS
+─────────────────────────────────────────────
+1. Click "Project Settings" ⚙️ (gear icon on left sidebar)
+2. Scroll down to "Script Properties"
+3. Click "Add script property"
+4. Add these two properties:
+
+   Property        | Value
+   ────────────────|─────────────────────────────
+   HRM_USERNAME    | Your OrangeHRM username
+   HRM_PASSWORD    | Your OrangeHRM password
+
+⚠️  IMPORTANT: These credentials are encrypted and secure.
+
+
+STEP 4: TEST THE SYSTEM
+────────────────────────
+Before automating, test manually:
+
+1. In the Apps Script editor, select "testSystem" from function dropdown
+2. Click "Run"
+3. First time: Click "Review permissions" → Choose account → Allow
+4. Check the "Execution log" at bottom for results
+
+Expected output:
+  ✓ HRM_USERNAME: Set
+  ✓ HRM_PASSWORD: Set
+  ✓ Authentication successful
+  ✓ ALL TESTS PASSED
+
+
+STEP 5: SET UP AUTOMATED DAILY TRIGGERS
+────────────────────────────────────────
+For Daily Reminder (Today's Leaves):
+  1. Click "Triggers" ⏰ (clock icon on left sidebar)
+  2. Click "Add Trigger"
+  3. Configure:
+     - Function: sendDailyLeaveReminder
+     - Event source: Time-driven
+     - Type: Day timer
+     - Time: 8:00 AM to 9:00 AM (or your preferred time)
+  4. Click "Save"
+
+For Daily Notification (Tomorrow's Leaves):
+  1. Click "Add Trigger" again
+  2. Configure:
+     - Function: sendDailyLeaveNotification
+     - Event source: Time-driven
+     - Type: Day timer
+     - Time: 10:00 AM to 11:00 AM (or your preferred time)
+  3. Click "Save"
+
+✅ DONE! The system will now run automatically every day.
+
+
+================================================================================
+3. 👥 MANAGING TEAMS & EMPLOYEES
+================================================================================
+
+Update Config.js File
+─────────────────────
+Open Config.js in the Apps Script editor to manage your teams.
+
+
+ADD A NEW EMPLOYEE
+──────────────────
+Find the EMPLOYEES section and add a new line:
+
+  const EMPLOYEES = {
+    '0020': { name: 'Chathuka Upamith', email: 'chathuka@longwapps.com' },
+    '0025': { name: 'New Employee Name', email: 'new@longwapps.com' }, // Add
+  };
+
+Rules:
+  • Employee ID must match OrangeHRM (e.g., '0001', '0020')
+  • Intern IDs start with 'I' (e.g., 'I001', 'I002')
+  • Both name and email are required
+
+
+ADD A NEW TEAM
+──────────────
+Find the TEAMS section and add:
+
+  const TEAMS = [
+    {
+      teamName: 'Dev Team',
+      members: ['0005', '0007', '0020']
+    },
+    {
+      teamName: 'New Team Name',              // Add this
+      members: ['0005', '0020', 'I001']       // team block
+    }
+  ];
+
+
+ADD SOMEONE TO AN EXISTING TEAM
+────────────────────────────────
+Just add their ID to the members array:
+
+  {
+    teamName: 'Design Team',
+    members: ['0020', '0005', 'I002', '0025']  // Added 0025
+  }
+
+Note: People can be in multiple teams - they'll still only get ONE email.
+
+
+ADD A MANUAL LEAVE
+──────────────────
+For employees not in OrangeHRM (interns, contractors), find the 
+MANUAL_LEAVES section and add:
+
+  const MANUAL_LEAVES = [
+    // Full day leave (type is optional - defaults to full)
+    { 
+      employeeId: 'I001', 
+      fromDate: '2025-07-26', 
+      toDate: '2025-07-26'
+    },
+    
+    // Multiple days
+    { 
+      employeeId: '0005', 
+      fromDate: '2025-07-26', 
+      toDate: '2025-07-29'
+    },
+    
+    // Half day morning
+    { 
+      employeeId: 'I002', 
+      fromDate: '2025-07-26', 
+      toDate: '2025-07-26',
+      type: 'morning'
+    },
+    
+    // Half day afternoon
+    { 
+      employeeId: '0020', 
+      fromDate: '2025-07-26', 
+      toDate: '2025-07-26',
+      type: 'afternoon'
+    },
+    
+    // Specific time
+    { 
+      employeeId: 'I003', 
+      fromDate: '2025-07-26', 
+      toDate: '2025-07-26',
+      type: 'time',
+      startTime: '13:00',
+      endTime: '17:00'
+    }
+  ];
+
+Rules:
+  • Date format: 'YYYY-MM-DD' (e.g., '2025-07-26')
+  • Employee ID must exist in EMPLOYEES
+  • Full day: No type needed (it's the default)
+  • Half day/time: Only for single day (fromDate = toDate)
+  • Time format: 24-hour (e.g., '13:00', '16:30')
+
+Note: Manual leaves are automatically included in daily emails alongside 
+OrangeHRM data.
+
+
+================================================================================
+4. 🧪 MANUAL TESTING
+================================================================================
+
+TEST WITH TODAY'S DATE
+──────────────────────
+1. Select function: sendDailyLeaveReminder
+2. Click "Run"
+3. Check execution log
+
+
+TEST WITH A SPECIFIC PAST DATE
+───────────────────────────────
+1. Open Config.js
+2. Change MANUAL_REMINDER_DATE:
+   
+   const MANUAL_REMINDER_DATE = '2025-07-26';  // Change this date
+   
+3. Save
+4. Select function: sendManualLeaveReminder
+5. Click "Run"
+
+
+TEST TOMORROW'S NOTIFICATION
+────────────────────────────
+1. Open Config.js
+2. Change MANUAL_NOTIFICATION_DATE:
+   
+   const MANUAL_NOTIFICATION_DATE = '2025-07-26';
+   
+3. Save
+4. Select function: sendManualLeaveNotification
+5. Click "Run"
+
+
+================================================================================
+5. 📧 EMAIL TYPES
+================================================================================
+
+1. DAILY REMINDER (Today's Leaves)
+   • Sent: Every morning
+   • Subject: "Reminder: Team Members on Leave Today – [Date]"
+   • Shows: Who is on leave TODAY
+   • Format: Simple list with duration (Full Day, Half Day, etc.)
+
+2. ADVANCE NOTIFICATION (Tomorrow's Leaves)
+   • Sent: Every afternoon
+   • Subject: "Notification: Upcoming Team Members on Leave"
+   • Shows: Who is going on leave TOMORROW
+   • Format: Table with leave type and full duration
+
+
+================================================================================
+6. 🔍 HOW IT WORKS
+================================================================================
+
+WHO GETS EMAILS?
+────────────────
+✅ You WILL receive an email if:
+   • You are in the same team as someone on leave
+   • You are NOT on leave yourself
+
+❌ You WILL NOT receive an email if:
+   • You are on leave (you already know!)
+   • You are not in any team with the person on leave
+   • Your email is not configured in Config.js
+
+
+INTERNS LEAVE
+─────────────
+Interns are typically not in OrangeHRM. Add their leave information using 
+MANUAL_LEAVES, and they will be included in team notifications just like 
+regular employees.
+
+
+================================================================================
+7. 🐛 TROUBLESHOOTING
+================================================================================
+
+NO EMAILS SENT
+──────────────
+Check these:
+  1. Run testSystem - Are credentials working?
+  2. Check Execution log for errors
+  3. Verify trigger is active in Triggers page
+  4. Confirm email addresses are correct in Config.js
+
+
+SOMEONE DIDN'T GET EMAIL
+────────────────────────
+Possible reasons:
+  1. They are on leave (intentional - they shouldn't receive it)
+  2. Their email is wrong in Config.js
+  3. They are not in the same team as the person on leave
+  4. Their ID is not in the EMPLOYEES list
+
+
+WRONG NAMES IN EMAIL
+────────────────────
+Update the name in Config.js:
+
+  '0020': { name: 'Correct Name Here', email: 'email@company.com' }
+
+
+AUTHENTICATION FAILED
+─────────────────────
+  1. Check Script Properties for correct username/password
+  2. Try logging into OrangeHRM manually with same credentials
+  3. Password might have changed - update Script Properties
+
+
+================================================================================
+8. 📊 VIEW EXECUTION HISTORY
+================================================================================
+
+1. Click "Executions" 📜 (in left sidebar)
+2. See all past runs with timestamps
+3. Click any execution to see detailed logs
+
+What to look for:
+  ✅ "Authentication successful"
+  ✅ "Reminder emails sent to team members"
+  ❌ Any red errors
+
+
+================================================================================
+9. 🔒 SECURITY
+================================================================================
+
+• Your OrangeHRM password is encrypted by Google
+• Only you (the Google account owner) can access the script
+• No sensitive data is stored in the code files
+• Session cookies are temporary and cleared after each run
+
+
+================================================================================
+10. ✏️ QUICK REFERENCE
+================================================================================
+
+COMMON TASKS
+────────────
+Task                    | Where to Go
+────────────────────────|──────────────────────────────────────────
+Add new employee        | Edit Config.js → EMPLOYEES
+Add new team            | Edit Config.js → TEAMS
+Add manual leave        | Edit Config.js → MANUAL_LEAVES
+Update email            | Edit Config.js → EMPLOYEES
+Change trigger time     | Triggers page → Edit trigger
+Test system             | Run testSystem function
+View logs               | Click Executions in sidebar
+Check credentials       | Project Settings → Script Properties
+
+
+AVAILABLE FUNCTIONS
+───────────────────
+Function                      | What It Does
+──────────────────────────────|────────────────────────────────────────
+testSystem                    | Validates setup and credentials
+sendDailyLeaveReminder        | Sends today's leave reminder
+sendDailyLeaveNotification    | Sends tomorrow's leave notification
+sendManualLeaveReminder       | Test with specific date (reminder)
+sendManualLeaveNotification   | Test with specific date (notification)
+
+
+================================================================================
+11. 💡 TIPS & BEST PRACTICES
+================================================================================
+
+1. Always test after making changes - Run testSystem to verify
+
+2. Keep Config.js updated - Remove people who leave the company
+
+3. Use meaningful intern IDs - e.g., 'I001' for first intern
+
+4. Check execution log regularly - Catch issues early
+
+5. Update credentials if password changes - In Script Properties
+
+6. Clean up old manual leaves - Remove past dates periodically
+
+7. For full day leaves - No need to add type field (it defaults to full)
+
+
+================================================================================
+📞 NEED HELP?
+================================================================================
+
+1. Check the Execution log for error messages
+2. Run testSystem to diagnose issues
+3. Verify Config.js has correct data
+4. Contact your IT team or system administrator
+
+
+────────────────────────────────────────────────────────────────────────────────
+Created by: Chathuka Upamith
+📧 Email: upamithc@gmail.com
+🗓️ Last Updated: December 2025
+────────────────────────────────────────────────────────────────────────────────
+
+================================================================================
