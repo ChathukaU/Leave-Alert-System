@@ -1,5 +1,7 @@
 Config.example.js
 README.md
+LICENSE
 .claspignore
 .gitignore
 .clasp.json
+GUIDE.md

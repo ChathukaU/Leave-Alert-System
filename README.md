@@ -1,5 +1,9 @@
 # 📧 Automated Leave Alert System (Google Apps Script + OrangeHRM)
 
+![Status](https://img.shields.io/badge/status-stable-brightgreen)
+![License](https://img.shields.io/badge/license-MIT-blue)
+![Platform](https://img.shields.io/badge/platform-Google%20Apps%20Script-orange)
+
 This system connects to an **OrangeHRM HR Manager account**, fetches employee leave data, and automatically sends daily formatted email alerts to team members. It eliminates manual checking, improves visibility, and keeps everyone informed about current and upcoming employee absences.
 
 Powered by **Google Apps Script**, developed in **VS Code**, and version-controlled using **GitHub + clasp**, this project provides a clean and automated workflow for organizations using OrangeHRM.
@@ -7,13 +11,15 @@ Powered by **Google Apps Script**, developed in **VS Code**, and version-control
 ---
 
 ## 👨‍💻 Author
-Created by **Chathuka Upamith**
+
+**Chathuka Upamith**  
+*Software Engineer | Full Stack Developer*
 
 📧 Email: [upamithc@gmail.com](mailto:upamithc@gmail.com)  
-💼 LinkedIn: [chathuka-upamith](https://www.linkedin.com/in/chathuka-upamith/)  
-🐙 GitHub: [ChathukaU](https://github.com/ChathukaU)
+💼 LinkedIn: [linkedin.com/in/chathuka-upamith](https://www.linkedin.com/in/chathuka-upamith/)  
+🐙 GitHub: [github.com/ChathukaU](https://github.com/ChathukaU)
 
-
+> Built as a real-world internal automation system and published as open source for learning and reuse.
 
 ---
 
@@ -25,6 +31,20 @@ Created by **Chathuka Upamith**
 - ⏰ **Automated scheduling** via Google Apps Script triggers
 - 🎨 **HTML email templates** for professional notifications
 - ⚠️ **Admin error notifications** - Automatic alerts when system fails
+
+---
+
+## 🧠 Design Decisions & Engineering Judgment
+
+This system is designed with real-world production use in mind and follows professional software engineering practices:
+
+- **Weekend execution intentionally skipped** – Prevents unprofessional or easily missed notifications
+- **Security-first configuration** – Sensitive credentials are excluded from both GitHub and Apps Script using `.gitignore` and `.claspignore`
+- **Clear separation of concerns** – Configuration is kept separate from business logic to support multiple teams and environments
+- **Non-invasive integration** – Operates alongside OrangeHRM without modifying or extending the HR system itself
+- **Privacy by default** – HR data is processed temporarily and never stored
+- **Minimal dependencies** – Relies only on native Google Apps Script services for reliability
+- **Simple onboarding** – `Config.example.js` enables quick and safe setup for new users
 
 ---
 
@@ -221,9 +241,11 @@ This is an internal tool, but improvements are welcome:
 
 ## 📄 License
 
-**Internal Company Use Only – Not for Public Distribution**
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+Free to use, modify, and distribute with attribution.
 
 ---
 
-🗓️ **Last Updated:** December 2025  
+🗓️ **Last Updated:** January 2026  
 ⭐ **Star this repo** if you find it useful!
